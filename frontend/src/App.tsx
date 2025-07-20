@@ -1,5 +1,16 @@
-function App() {
-  return <div>111</div>
-}
+import React from 'react';
+import LeftSideBar from './components/LeftSideBar';
+import MainContent from './components/MainContent';
+import RightSideBar from './components/RightSideBar';
 
-export default App
+const App: React.FC = () => {
+  return (
+    <div className="flex h-screen bg-white">
+      <LeftSideBar />
+      <MainContent />
+      <RightSideBar />
+    </div>
+  );
+};
+
+export default App;
