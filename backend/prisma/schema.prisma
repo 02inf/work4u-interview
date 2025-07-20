@@ -19,4 +19,5 @@ model conversations {
   title     String
   originalInput String @map("original_input")
   parsedOutput String @map("parsed_output")
+  createdAt DateTime @map("created_at") @default(now())
 }
