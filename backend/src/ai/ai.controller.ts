@@ -9,9 +9,9 @@ export class AiController {
 
   @Post('generation')
   async generate(@Body() request: GenerateRequest, @Res() res: Response) {
-    const text = await this.service.generate(request)
+    const object = await this.service.generate(request)
     return {
-      text
+      object
     } 
   }
 }
