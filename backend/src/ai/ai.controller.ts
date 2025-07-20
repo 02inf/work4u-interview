@@ -9,8 +9,9 @@ export class AiController {
 
   @Post('generation')
   async generate(@Body() request: GenerateRequest, @Res() res: Response) {
-    const stream = await this.service.generate(request)
-    return stream.text
-    // stream.pipeDataStreamToResponse(res)
+    const text = await this.service.generate(request)
+    return {
+      text
+    } 
   }
 }

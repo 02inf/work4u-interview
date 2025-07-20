@@ -4,12 +4,13 @@ import { generateText, streamText } from 'ai';
 import { GenerateRequest } from './ai.dto';
 import { openai } from '@ai-sdk/openai';
 import { createQwen, qwen } from 'qwen-ai-provider';
+import { PrismaService } from 'src/prisma.service';
 
 @Injectable()
 export class AiService {
-  constructor() {}
+  constructor(private readonly prismaService: PrismaService) {}
   async generate({ input }: GenerateRequest) {
-    return generateText({
+    const { text } = await generateText({
       model: createQwen({
         baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
       }).languageModel('qwen-plus'),
@@ -21,5 +22,13 @@ export class AiService {
         },
       ],
     });
+    await this.prismaService.conversations.create({
+      data: {
+        originalInput: input,
+        parsedOutput: text,
+        title: ''
+      }
+    })
+    return text
   }
 }
