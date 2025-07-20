@@ -39,7 +39,7 @@ export class AiService {
       data: {
         originalInput: input,
         parsedOutput: JSON.stringify(object),
-        title: ''
+        title: input.slice(0, 50)
       }
     })
     return object

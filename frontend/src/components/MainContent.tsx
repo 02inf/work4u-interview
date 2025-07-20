@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 
 interface AiResponse {
   summary: string;
@@ -12,6 +12,7 @@ interface AiResponse {
 interface IMessage {
   type: 'user' | 'ai';
   text: string | AiResponse;
+  conversationId?: number;
 }
 
 const AiMessageContent: React.FC<{ content: AiResponse }> = ({ content }) => (
@@ -41,11 +42,41 @@ const AiMessageContent: React.FC<{ content: AiResponse }> = ({ content }) => (
   </div>
 );
 
-
 const MainContent: React.FC = () => {
   const [conversation, setConversation] = useState<IMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [shareStatus, setShareStatus] = useState<string>('');
+
+  const lastConversationId = useMemo(() => {
+    const lastAiMessage = [...conversation].reverse().find(msg => msg.type === 'ai' && msg.conversationId);
+    return lastAiMessage?.conversationId;
+  }, [conversation]);
+
+  async function handleShare() {
+    if (!lastConversationId) return;
+
+    try {
+      setShareStatus('Sharing...');
+      const response = await fetch(`http://localhost:3000/conversation/${lastConversationId}/share`, {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to create share link.');
+      }
+      const result = await response.json();
+      await navigator.clipboard.writeText(result.data);
+      setShareStatus('Copied!');
+
+    } catch (error) {
+      console.error("Share failed:", error);
+      setShareStatus('Failed!');
+    } finally {
+      setTimeout(() => {
+        setShareStatus('');
+      }, 2000); // Reset status after 2 seconds
+    }
+  }
 
   async function handleSubmit() {
     if (!input.trim() || isLoading) return;
@@ -67,11 +98,10 @@ const MainContent: React.FC = () => {
       });
 
       if (response.ok) {
-        const json: AiResponse = await response.json();
-        const aiMessage: IMessage = { type: 'ai', text: json };
+        const json = await response.json();
+        const aiMessage: IMessage = { type: 'ai', text: JSON.parse(json.parsedOutput), conversationId: json.id };
         setConversation(prev => [...prev, aiMessage]);
       } else {
-        // Handle error response from server
         const errorResponse: IMessage = { type: 'ai', text: { summary: 'Sorry, something went wrong.', decisions: [], actions: []}};
         setConversation(prev => [...prev, errorResponse]);
       }
@@ -86,6 +116,18 @@ const MainContent: React.FC = () => {
 
   return (
     <div className="flex flex-col flex-grow h-screen bg-gray-50">
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+        <h1 className="text-lg font-semibold text-gray-800">Conversation</h1>
+        {lastConversationId && (
+          <button
+            onClick={handleShare}
+            disabled={!!shareStatus}
+            className="text-sm bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-300 disabled:opacity-50"
+          >
+            {shareStatus || 'Share'}
+          </button>
+        )}
+      </div>
       <div className="flex-grow p-6 overflow-y-auto">
         <div className="space-y-6">
           {conversation.map((msg, index) => (
@@ -139,7 +181,7 @@ const MainContent: React.FC = () => {
             onClick={handleSubmit}
             disabled={!input.trim() || isLoading}
           >
-            {isLoading ? 'Sending...' : 'Generate Digest'}
+            {isLoading ? 'Sending...' : 'Send'}
           </button>
         </div>
       </div>
