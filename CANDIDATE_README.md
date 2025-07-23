@@ -1,16 +1,142 @@
-# AI Meeting Digest - Project Documentation
+# AI Meeting Digest - Candidate Submission
 
-## Overview
+### 1. Technology Choices
 
-AI Meeting Digest is a full-stack web application that transforms meeting transcripts into structured, actionable summaries using Google's Gemini AI. The application provides both standard and real-time streaming responses, with shareable links for easy collaboration.
+* **Frontend:** Next.js 15, React 19, TypeScript, Tailwind CSS
+* **Backend:** Next.js API Routes
+* **Database:** Supabase (PostgreSQL)
+* **AI Service:** Google Gemini API
 
-## Tech Stack
+I chose this stack because:
+- **Next.js 15** provides an excellent full-stack framework with built-in API routes, server-side rendering, and excellent developer experience
+- **TypeScript** ensures type safety and better code maintainability
+- **Tailwind CSS** allows rapid UI development with utility-first classes
+- **Supabase** offers a managed PostgreSQL database with real-time capabilities and built-in authentication (for future enhancements)
+- **Google Gemini API** provides powerful AI capabilities with streaming support and a generous free tier
 
-- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS
-- **Backend**: Next.js API Routes
-- **Database**: Supabase (PostgreSQL)
-- **AI Service**: Google Gemini API
-- **Deployment**: Vercel (recommended)
+### 2. How to Run the Project
+
+**Prerequisites:**
+- Node.js 18+ and npm
+- Supabase account (free tier works)
+- Google AI Studio account for Gemini API key (free)
+
+**Step-by-step instructions:**
+
+1. Clone the repository:
+```bash
+git clone https://github.com/your-username/work4u-interview.git
+cd work4u-interview
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Set up environment variables:
+```bash
+cp .env.local.example .env.local
+```
+
+4. Edit `.env.local` with your credentials:
+```
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+GOOGLE_GEMINI_API_KEY=your_google_gemini_api_key
+```
+
+5. Set up Supabase database:
+   - Create a new Supabase project at https://supabase.com
+   - Go to SQL Editor and run the commands from `supabase-schema.sql`
+   - Copy your project URL and anon key from Settings → API
+
+6. Get Google Gemini API key:
+   - Visit https://aistudio.google.com/app/apikey
+   - Create a new API key
+   - Add it to `.env.local`
+
+7. Run the development server:
+```bash
+npm run dev
+```
+
+8. Open http://localhost:3000 in your browser
+
+### 3. Design Decisions & Trade-offs
+
+**Key Design Decisions:**
+
+1. **Real-time Streaming Implementation:**
+   - Used Server-Sent Events (SSE) instead of WebSockets for simplicity
+   - Created a toggle to switch between streaming and non-streaming modes
+   - Implemented progressive text rendering with a dedicated streaming display area
+
+2. **Database Design:**
+   - Single `digests` table with JSON arrays for decisions and action items
+   - Added `public_id` field for shareable links using nanoid for short, URL-safe IDs
+   - Indexed `public_id` and `created_at` for better query performance
+
+3. **UI/UX Improvements:**
+   - Modern gradient design with glassmorphism effects
+   - Added loading states, error handling, and success feedback
+   - Implemented copy-to-clipboard functionality for share links
+   - Responsive design that works well on mobile and desktop
+
+4. **API Structure:**
+   - Separate endpoints for streaming (`/api/digest/stream`) and non-streaming (`/api/digest/create`)
+   - Pagination support in list endpoint for scalability
+   - Error handling with appropriate HTTP status codes
+
+**Trade-offs:**
+
+1. **No Authentication:** Kept the app simple without user accounts, but added public IDs for basic access control
+2. **Client-side State Management:** Used React hooks instead of a state management library for simplicity
+3. **Streaming Parsing:** Basic text parsing for structured data extraction during streaming - could be improved with more sophisticated NLP
+
+**What I Would Do Differently with More Time:**
+
+1. **Testing:** Implement comprehensive unit and integration tests using Jest and React Testing Library
+2. **Authentication:** Add Supabase Auth for user accounts and private digests
+3. **Enhanced Streaming:** Implement markdown parsing during streaming for better formatting
+4. **Caching:** Add Redis or Supabase caching for frequently accessed digests
+5. **Export Features:** Add PDF and Word document export functionality
+6. **Webhook Support:** Allow integration with Slack/Teams for automatic digest sharing
+
+### 4. AI Usage Log
+
+I used AI programming assistants extensively throughout this project:
+
+1. **Project Setup & Architecture:**
+   - Used Claude to help design the initial project structure and database schema
+   - Asked for best practices for Next.js 15 app router implementation
+
+2. **Streaming Implementation:**
+   - Consulted on the best approach for implementing SSE with Next.js
+   - Got help debugging CORS issues and proper header configuration
+   - Used AI to understand the Gemini streaming API documentation
+
+3. **UI Components:**
+   - Generated initial Tailwind CSS classes for the gradient backgrounds
+   - Asked for modern UI design patterns and animation suggestions
+   - Got help with responsive design breakpoints
+
+4. **Error Handling:**
+   - Used AI to implement comprehensive error boundaries
+   - Asked for best practices in API error responses
+   - Got suggestions for user-friendly error messages
+
+5. **Database Queries:**
+   - Optimized Supabase queries with AI assistance
+   - Implemented proper indexing strategies
+   - Learned about Row Level Security considerations
+
+6. **Code Quality:**
+   - Used AI for TypeScript type definitions
+   - Asked for ESLint rule recommendations
+   - Got help with code organization and file structure
+
+The AI assistants were invaluable for rapid development, helping me understand new APIs quickly and implement features I hadn't used before. They were particularly helpful for debugging streaming issues and optimizing performance.
 
 ## Features
 

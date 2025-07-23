@@ -1,10 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
-import { generateDigest } from '@/lib/gemini'
 import { CreateDigestRequest, CreateDigestResponse } from '@/types/digest'
 
 export async function POST(request: NextRequest) {
+  console.log('API /api/digest/create called')
+  console.log('Environment check:', {
+    hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+    hasSupabaseKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    hasGeminiKey: !!process.env.GOOGLE_GEMINI_API_KEY
+  })
+  
   try {
+    // Dynamic imports to better handle errors
+    const { supabase } = await import('@/lib/supabase').catch(err => {
+      console.error('Failed to import supabase:', err)
+      throw new Error('Failed to load database module')
+    })
+    
+    const { generateDigest } = await import('@/lib/gemini').catch(err => {
+      console.error('Failed to import gemini:', err)
+      throw new Error('Failed to load AI module')
+    })
     const body: CreateDigestRequest = await request.json()
     const { transcript } = body
 
@@ -32,7 +47,8 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error('Database error:', error)
+      console.error('Supabase insert error:', error)
+      console.error('Error details:', JSON.stringify(error, null, 2))
       return NextResponse.json(
         { error: 'Failed to save digest' },
         { status: 500 }
@@ -43,6 +59,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response)
   } catch (error) {
     console.error('Error creating digest:', error)
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
