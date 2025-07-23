@@ -6,6 +6,11 @@
   body {
     @apply antialiased;
   }
+  
+  /* Dark mode background */
+  html.dark {
+    color-scheme: dark;
+  }
 }
 
 @layer utilities {

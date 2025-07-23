@@ -71,8 +71,8 @@ export default function StreamingDigest({ onComplete }: StreamingDigestProps) {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-xl font-semibold mb-4">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors duration-300">
+      <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
         New Meeting Transcript (with Streaming)
       </h2>
       
@@ -80,26 +80,26 @@ export default function StreamingDigest({ onComplete }: StreamingDigestProps) {
         value={transcript}
         onChange={(e) => setTranscript(e.target.value)}
         placeholder="Paste your meeting transcript here..."
-        className="w-full h-48 p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        className="w-full h-48 p-4 border border-gray-300 dark:border-gray-600 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
         disabled={isStreaming}
       />
 
       {error && (
-        <p className="mt-2 text-sm text-red-600">{error}</p>
+        <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>
       )}
 
       <button
         onClick={generateStreamingDigest}
         disabled={isStreaming || !transcript.trim()}
-        className="mt-4 w-full bg-green-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+        className="mt-4 w-full bg-green-600 dark:bg-green-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-700 dark:hover:bg-green-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
       >
         {isStreaming ? 'Generating...' : 'Generate with Streaming'}
       </button>
 
       {streamedContent && (
-        <div className="mt-4 p-4 bg-gray-50 rounded-lg max-h-64 overflow-y-auto">
-          <h3 className="font-medium mb-2">Generating Summary...</h3>
-          <p className="text-gray-700 whitespace-pre-wrap">{streamedContent}</p>
+        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg max-h-64 overflow-y-auto">
+          <h3 className="font-medium mb-2 text-gray-900 dark:text-gray-100">Generating Summary...</h3>
+          <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{streamedContent}</p>
         </div>
       )}
     </div>
