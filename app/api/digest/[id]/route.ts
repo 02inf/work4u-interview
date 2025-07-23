@@ -3,13 +3,14 @@ import { supabase } from '@/lib/supabase'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const { data, error } = await supabase
       .from('digests')
       .select('*')
-      .eq('public_id', params.id)
+      .eq('public_id', id)
       .single()
 
     if (error || !data) {
