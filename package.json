@@ -1,6 +1,6 @@
 {
   "name": "work4u-interview",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Welcome, and thank you for your interest in work4u and the amazing opportunities in our startup community! This assignment is designed to give us a sense of your software engineering skills in a practical, real-world scenario. It's a small, self-contained project that reflects the kind of work we do, including problem-solving, product thinking, and leveraging modern tools.",
   "main": "index.js",
   "scripts": {
