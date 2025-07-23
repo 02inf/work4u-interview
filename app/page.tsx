@@ -113,23 +113,23 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <header className="text-center mb-10">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <header className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-gray-900 mb-3">
             AI Meeting Digest
           </h1>
-          <p className="text-base text-gray-600">
+          <p className="text-lg text-gray-600">
             Transform your meeting transcripts into actionable summaries
           </p>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
           {/* Input Section */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">New Meeting Transcript</h2>
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-gray-800">New Meeting Transcript</h2>
+              <label className="flex items-center gap-2 text-sm cursor-pointer hover:text-blue-600 transition-colors">
                 <input
                   type="checkbox"
                   checked={useStreaming}
@@ -143,8 +143,8 @@ export default function Home() {
             <textarea
               value={transcript}
               onChange={(e) => setTranscript(e.target.value)}
-              placeholder="Paste your meeting transcript here..."
-              className="w-full h-80 p-5 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-150 text-base"
+              placeholder="Paste your meeting transcript here...\n\nExample:\nJohn: Let's discuss our Q4 priorities...\nSarah: I think we should focus on..."
+              className="w-full min-h-[400px] p-6 border-2 border-gray-200 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-base leading-relaxed bg-gray-50 focus:bg-white"
               disabled={isGenerating}
             />
 
@@ -157,16 +157,19 @@ export default function Home() {
             <button
               onClick={generateDigest}
               disabled={isGenerating || !transcript.trim()}
-              className="mt-4 w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-150"
+              className="mt-6 w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 px-6 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
             >
               {isGenerating ? 'Generating...' : 'Generate Digest'}
             </button>
 
             {/* Streaming Output Display */}
             {streamingContent && (
-              <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <h3 className="text-sm font-medium text-gray-700 mb-2">AI is generating your digest...</h3>
-                <div className="text-sm text-gray-600">
+              <div className="mt-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+                <h3 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                  <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
+                  AI is generating your digest...
+                </h3>
+                <div className="text-sm text-gray-700 leading-relaxed">
                   <pre className="whitespace-pre-wrap font-sans">{streamingContent}</pre>
                 </div>
               </div>
@@ -175,23 +178,25 @@ export default function Home() {
 
           {/* Recent Digests */}
           <div>
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Recent Digests</h2>
+            <h2 className="text-xl font-semibold text-gray-800 mb-6">Recent Digests</h2>
             
             {isLoading ? (
               <div className="flex justify-center items-center h-64">
-                <p className="text-gray-500">Loading...</p>
+                <p className="text-gray-400 animate-pulse">Loading digests...</p>
               </div>
             ) : digests.length === 0 ? (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-                <svg className="mx-auto h-10 w-10 text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <p className="text-gray-500">
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-16 text-center">
+                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <p className="text-gray-500 text-lg">
                   No digests yet. Create your first one!
                 </p>
               </div>
             ) : (
-              <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="space-y-4 max-h-[700px] overflow-y-auto pr-2 custom-scrollbar">
                 {digests.map((digest) => (
                   <DigestCard key={digest.id} digest={digest} />
                 ))}

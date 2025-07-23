@@ -20,25 +20,35 @@ export default function DigestCard({ digest }: DigestCardProps) {
   }
   
   return (
-    <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-4 border border-gray-200">
+    <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200 p-5 border border-gray-100 hover:border-blue-200">
       <div className="flex justify-between items-start mb-3">
-        <h3 className="text-base font-medium text-gray-800">
+        <h3 className="text-base font-semibold text-gray-800">
           Meeting Summary
         </h3>
-        <time className="text-xs text-gray-500">
+        <time className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
           {formattedDate}
         </time>
       </div>
       
-      <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+      <p className="text-sm text-gray-600 mb-4 line-clamp-3 leading-relaxed">
         {digest.overview}
       </p>
       
       <div className="flex justify-between items-center">
-        <div className="flex gap-3 text-xs text-gray-500">
-          <span>{digest.key_decisions.length} decisions</span>
-          <span>•</span>
-          <span>{digest.action_items.length} action items</span>
+        <div className="flex gap-4 text-xs">
+          <span className="flex items-center gap-1 text-green-700">
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+            {digest.key_decisions.length} decisions
+          </span>
+          <span className="flex items-center gap-1 text-blue-700">
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+              <path fillRule="evenodd" d="M4 5a2 2 0 012-2 1 1 0 000 2H6a2 2 0 00-2 2v6a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2 1 1 0 100-2 2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2V5z" clipRule="evenodd" />
+            </svg>
+            {digest.action_items.length} actions
+          </span>
         </div>
         
         <div className="flex gap-2 items-center">
@@ -61,7 +71,7 @@ export default function DigestCard({ digest }: DigestCardProps) {
               </button>
               <Link
                 href={`/digest/${digest.public_id}`}
-                className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                className="text-blue-600 hover:text-blue-700 text-sm font-medium hover:underline"
               >
                 View Details →
               </Link>
