@@ -1,0 +1,43 @@
+{
+  "name": "work4u-interview",
+  "version": "1.0.0",
+  "description": "Welcome, and thank you for your interest in work4u and the amazing opportunities in our startup community! This assignment is designed to give us a sense of your software engineering skills in a practical, real-world scenario. It's a small, self-contained project that reflects the kind of work we do, including problem-solving, product thinking, and leveraging modern tools.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/02inf/work4u-interview.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/02inf/work4u-interview/issues"
+  },
+  "homepage": "https://github.com/02inf/work4u-interview#readme",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@supabase/supabase-js": "^2.52.0",
+    "@types/node": "^24.1.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "autoprefixer": "^10.4.21",
+    "next": "^15.4.3",
+    "postcss": "^8.5.6",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "tailwindcss": "^4.1.11",
+    "typescript": "^5.8.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.11",
+    "eslint": "^9.31.0",
+    "eslint-config-next": "^15.4.3"
+  }
+}
