@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
             }
           }
           
-          overview = overviewLines.join(' ')
+          overview = overviewLines.join('\n')
 
           // Save to database
           const { data, error } = await supabase

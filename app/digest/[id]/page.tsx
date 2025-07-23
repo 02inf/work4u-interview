@@ -98,7 +98,7 @@ export default function DigestPage() {
           {/* Overview */}
           <section className="mb-8">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Overview</h2>
-            <p className="text-gray-700 leading-relaxed">{digest.overview}</p>
+            <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{digest.overview}</p>
           </section>
 
           {/* Key Decisions */}
