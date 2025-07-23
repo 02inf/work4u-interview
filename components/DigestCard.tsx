@@ -30,7 +30,7 @@ export default function DigestCard({ digest }: DigestCardProps) {
         </time>
       </div>
       
-      <p className="text-sm text-gray-600 mb-4 line-clamp-3 leading-relaxed">
+      <p className="text-sm text-gray-600 mb-4 leading-relaxed">
         {digest.overview}
       </p>
       
