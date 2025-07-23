@@ -36,26 +36,34 @@ export async function POST(request: NextRequest) {
           }
 
           // Parse the full content to extract structured data
-          const lines = fullContent.split('\n').filter(line => line.trim())
+          const lines = fullContent.split('\n')
           let section = ''
+          let overviewLines: string[] = []
           
           for (const line of lines) {
-            if (line.toLowerCase().includes('overview') || line.toLowerCase().includes('summary')) {
+            const trimmedLine = line.trim()
+            
+            if (trimmedLine.toLowerCase().includes('overview') || trimmedLine.toLowerCase().includes('summary')) {
               section = 'overview'
-            } else if (line.toLowerCase().includes('key decision') || line.toLowerCase().includes('decision')) {
+              continue
+            } else if (trimmedLine.toLowerCase().includes('key decision') || trimmedLine.toLowerCase().includes('decision')) {
               section = 'decisions'
-            } else if (line.toLowerCase().includes('action item') || line.toLowerCase().includes('task')) {
+              continue
+            } else if (trimmedLine.toLowerCase().includes('action item') || trimmedLine.toLowerCase().includes('task')) {
               section = 'actions'
-            } else if (line.trim()) {
-              if (section === 'overview' && !overview) {
-                overview = line.trim()
-              } else if (section === 'decisions' && line.trim().startsWith('-')) {
-                keyDecisions.push(line.trim().substring(1).trim())
-              } else if (section === 'actions' && line.trim().startsWith('-')) {
-                actionItems.push(line.trim().substring(1).trim())
-              }
+              continue
+            }
+            
+            if (section === 'overview' && trimmedLine && !trimmedLine.startsWith('-')) {
+              overviewLines.push(trimmedLine)
+            } else if (section === 'decisions' && trimmedLine.startsWith('-')) {
+              keyDecisions.push(trimmedLine.substring(1).trim())
+            } else if (section === 'actions' && trimmedLine.startsWith('-')) {
+              actionItems.push(trimmedLine.substring(1).trim())
             }
           }
+          
+          overview = overviewLines.join(' ')
 
           // Save to database
           const { data, error } = await supabase
@@ -63,7 +71,7 @@ export async function POST(request: NextRequest) {
             .insert({
               transcript,
               summary: fullContent,
-              overview: overview || fullContent.substring(0, 200) + '...',
+              overview: overview || fullContent,
               key_decisions: keyDecisions,
               action_items: actionItems,
             })
