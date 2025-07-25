@@ -1,0 +1,8 @@
+GET http://localhost:3000 HTTP/1.1
+
+POST http://localhost:3000/ai/generation HTTP/1.1
+Content-Type: application/json
+
+{
+    "input": "today is monday"
+}
