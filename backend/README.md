@@ -55,10 +55,10 @@ cp .env.example .env
 python run.py
 
 # 方法2: 直接运行
-python src/example.py
+python src/main.py
 
 # 方法3: 使用 uvicorn
-uvicorn src.example:app --reload --host 0.0.0.0 --port 8000
+python -m uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### 4. 访问服务

@@ -1,6 +1,7 @@
 import type { Route } from "./+types/history";
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
+import ReactMarkdown from "react-markdown";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -14,13 +15,10 @@ interface MeetingSummary {
   title: string;
   date: string;
   participants: string[];
-  key_points: string[];
-  action_items: string[];
-  decisions: string[];
-  next_steps: string[];
   duration?: string;
   transcript: string;
   public_id?: string;
+  natural_summary?: string;
 }
 
 export default function History() {
@@ -34,8 +32,8 @@ export default function History() {
       try {
         const response = await fetch('http://localhost:8000/api/meetings');
         if (response.ok) {
-          const meetings = await response.json();
-          setDigests(meetings);
+          const data = await response.json();
+          setDigests(data.meetings || []);
         } else {
           console.error('Failed to fetch meetings');
         }
@@ -47,10 +45,12 @@ export default function History() {
     };
 
     fetchMeetings();
+    console.log(11);
+    
   }, []);
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('zh-CN', {
+    return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -62,7 +62,7 @@ export default function History() {
   const handleShare = async (digest: MeetingSummary, event: React.MouseEvent) => {
     event.stopPropagation(); // 阻止事件冒泡
     if (!digest.public_id) {
-      alert('该摘要暂不支持分享');
+      alert('This digest is not shareable.');
       return;
     }
 
@@ -86,8 +86,30 @@ export default function History() {
   };
 
   const handleCardClick = (digest: MeetingSummary) => {
-    if (digest.public_id) {
-      navigate(`/digest/${digest.public_id}`);
+    navigate(`/digest/${digest.id}`);
+  };
+
+  const handleDelete = async (digest: MeetingSummary, event: React.MouseEvent) => {
+    event.stopPropagation(); // 阻止事件冒泡
+    
+    if (!confirm(`Are you sure you want to delete "${digest.title}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8000/api/meetings/${digest.id}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        // 从列表中移除已删除的会议
+        setDigests(prevDigests => prevDigests.filter(d => d.id !== digest.id));
+      } else {
+        alert('Delete failed. Please try again later.');
+      }
+    } catch (error) {
+      console.error('Delete failed:', error);
+      alert('Delete failed. Please try again later.');
     }
   };
 
@@ -126,12 +148,12 @@ export default function History() {
 
         {digests.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-8 text-center">
-            <p className="text-gray-600 mb-4">暂无会议摘要记录</p>
+            <p className="text-gray-600 mb-4">No digests available</p>
             <Link
               to="/"
               className="inline-block bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 transition-colors"
             >
-              创建第一个摘要
+              Create New Digest
             </Link>
           </div>
         ) : (
@@ -150,78 +172,49 @@ export default function History() {
                     <div className="flex flex-wrap gap-4 text-sm text-gray-500">
                       <span>📅 {formatDate(digest.date)}</span>
                       {digest.duration && <span>⏱️ {digest.duration}</span>}
-                      <span>👥 {digest.participants.join(', ')}</span>
+                      <span>👥 {(digest.participants || []).join(', ')}</span>
                     </div>
                   </div>
-                  <button 
-                    onClick={(e) => handleShare(digest, e)}
-                    className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1 transition-colors"
-                    disabled={!digest.public_id}
-                  >
-                    {copiedId === digest.id ? (
-                      <>
-                        <span className="text-green-600">✓</span>
-                        已复制
-                      </>
-                    ) : (
-                      <>
-                        <span>🔗</span>
-                        分享
-                      </>
-                    )}
-                  </button>
-                </div>
-                
-                <div className="mb-4">
-                  <h3 className="text-sm font-medium text-gray-800 mb-1">🎯 关键要点</h3>
-                  <ul className="text-sm text-gray-700 space-y-1">
-                    {digest.key_points.slice(0, 2).map((point, index) => (
-                      <li key={index} className="flex items-start">
-                        <span className="text-blue-600 mr-2">•</span>
-                        {point}
-                      </li>
-                    ))}
-                    {digest.key_points.length > 2 && (
-                      <li className="text-gray-500 text-xs">
-                        +{digest.key_points.length - 2} 更多
-                      </li>
-                    )}
-                  </ul>
-                </div>
-                
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-800 mb-1">✅ 决策事项</h3>
-                    <ul className="text-sm text-gray-700 space-y-1">
-                      {digest.decisions.slice(0, 2).map((decision, index) => (
-                        <li key={index} className="flex items-start">
-                          <span className="text-green-600 mr-2">•</span>
-                          {decision}
-                        </li>
-                      ))}
-                      {digest.decisions.length > 2 && (
-                        <li className="text-gray-500 text-xs">
-                          +{digest.decisions.length - 2} 更多
-                        </li>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={(e) => handleShare(digest, e)}
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1 transition-colors"
+                      disabled={!digest.public_id}
+                    >
+                      {copiedId === digest.id ? (
+                        <>
+                          <span className="text-green-600">✓</span>
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <span>🔗</span>
+                          Share
+                        </>
                       )}
-                    </ul>
+                    </button>
+                    <button 
+                      onClick={(e) => handleDelete(digest, e)}
+                      className="text-red-600 hover:text-red-800 text-sm font-medium flex items-center gap-1 transition-colors"
+                      title="Delete Digest"
+                    >
+                      <span>🗑️</span>
+                      Delete
+                    </button>
                   </div>
-                  
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-800 mb-1">📋 行动项</h3>
-                    <ul className="text-sm text-gray-700 space-y-1">
-                      {digest.action_items.slice(0, 2).map((item, index) => (
-                        <li key={index} className="flex items-start">
-                          <span className="text-orange-600 mr-2">•</span>
-                          {item}
-                        </li>
-                      ))}
-                      {digest.action_items.length > 2 && (
-                        <li className="text-gray-500 text-xs">
-                          +{digest.action_items.length - 2} 更多
-                        </li>
-                      )}
-                    </ul>
+                </div>
+                
+                <div className="text-sm text-gray-700">
+                  <div className="overflow-hidden markdown-content" style={{
+                    display: '-webkit-box',
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: 'vertical'
+                  }}>
+                    {digest.natural_summary ? (
+                      <ReactMarkdown>{digest.natural_summary}</ReactMarkdown>
+                    ) : (
+                      'No summary available'
+                    )}
                   </div>
                 </div>
               </div>

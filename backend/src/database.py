@@ -10,7 +10,7 @@ import os
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'meetings.db')
 
 class DatabaseManager:
-    """数据库管理器"""
+    """简化的数据库管理器 - 单表设计"""
     
     def __init__(self, db_path: str = DB_PATH):
         self.db_path = db_path
@@ -27,244 +27,148 @@ class DatabaseManager:
             conn.close()
     
     def init_database(self):
-        """初始化数据库表结构"""
+        """初始化数据库表结构 - 简化为单表"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
-            # 创建会议表
+            # 删除旧的复杂表结构（如果存在）
+            cursor.execute('DROP TABLE IF EXISTS summaries')
+            cursor.execute('DROP TABLE IF EXISTS transcripts')
+            cursor.execute('DROP TABLE IF EXISTS meetings')
+            
+            # 创建简化的会议摘要表
             cursor.execute('''
-                CREATE TABLE IF NOT EXISTS meetings (
+                CREATE TABLE IF NOT EXISTS meeting_digests (
                     id TEXT PRIMARY KEY,
-                    title TEXT NOT NULL,
-                    date TEXT NOT NULL,
-                    duration TEXT,
+                    transcript TEXT NOT NULL,
+                    natural_summary TEXT,
+                    summary TEXT NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
             
-            # 创建转录表
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS transcripts (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    meeting_id TEXT NOT NULL,
-                    content TEXT NOT NULL,
-                    FOREIGN KEY (meeting_id) REFERENCES meetings(id)
-                )
-            ''')
-            
-            # 创建摘要表
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS summaries (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    meeting_id TEXT NOT NULL,
-                    public_id TEXT UNIQUE,
-                    participants TEXT,
-                    key_points TEXT,
-                    decisions TEXT,
-                    action_items TEXT,
-                    next_steps TEXT,
-                    FOREIGN KEY (meeting_id) REFERENCES meetings(id)
-                )
-            ''')
-            
             conn.commit()
-            print(f"✅ 数据库初始化完成: {self.db_path}")
+            print(f"✅ 简化数据库初始化完成: {self.db_path}")
     
-    def save_meeting(self, meeting_data: dict) -> bool:
-        """保存完整的会议数据（包括转录和摘要）"""
+    def save_digest(self, transcript: str, summary: dict, natural_summary: str = None) -> str:
+        """保存会议摘要数据"""
         try:
+            digest_id = str(uuid.uuid4())
+            
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 
-                # 保存会议基本信息
                 cursor.execute('''
-                    INSERT OR REPLACE INTO meetings (id, title, date, duration)
+                    INSERT INTO meeting_digests (id, transcript, natural_summary, summary)
                     VALUES (?, ?, ?, ?)
                 ''', (
-                    meeting_data['id'],
-                    meeting_data['title'],
-                    meeting_data['date'],
-                    meeting_data.get('duration')
-                ))
-                
-                # 保存转录内容
-                cursor.execute('''
-                    INSERT OR REPLACE INTO transcripts (meeting_id, content)
-                    VALUES (?, ?)
-                ''', (
-                    meeting_data['id'],
-                    meeting_data['transcript']
-                ))
-                
-                # 生成公开分享ID
-                public_id = str(uuid.uuid4())
-                
-                # 保存摘要信息
-                cursor.execute('''
-                    INSERT OR REPLACE INTO summaries 
-                    (meeting_id, public_id, participants, key_points, decisions, action_items, next_steps)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    meeting_data['id'],
-                    public_id,
-                    json.dumps(meeting_data.get('participants', []), ensure_ascii=False),
-                    json.dumps(meeting_data.get('key_points', []), ensure_ascii=False),
-                    json.dumps(meeting_data.get('decisions', []), ensure_ascii=False),
-                    json.dumps(meeting_data.get('action_items', []), ensure_ascii=False),
-                    json.dumps(meeting_data.get('next_steps', []), ensure_ascii=False)
+                    digest_id,
+                    transcript,
+                    natural_summary,
+                    json.dumps(summary, ensure_ascii=False)
                 ))
                 
                 conn.commit()
-                return True
+                return digest_id
                 
         except Exception as e:
-            print(f"❌ 保存会议数据失败: {e}")
-            return False
+            print(f"❌ 保存摘要数据失败: {e}")
+            raise e
     
-    def get_meeting(self, meeting_id: str) -> Optional[dict]:
-        """获取单个会议的完整信息"""
+    def get_digest(self, digest_id: str) -> Optional[dict]:
+        """获取单个摘要的完整信息"""
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 
-                # 获取会议基本信息
-                cursor.execute('SELECT * FROM meetings WHERE id = ?', (meeting_id,))
-                meeting_row = cursor.fetchone()
+                cursor.execute('SELECT * FROM meeting_digests WHERE id = ?', (digest_id,))
+                row = cursor.fetchone()
                 
-                if not meeting_row:
+                if not row:
                     return None
                 
-                # 获取转录内容
-                cursor.execute('SELECT content FROM transcripts WHERE meeting_id = ?', (meeting_id,))
-                transcript_row = cursor.fetchone()
-                
-                # 获取摘要信息
-                cursor.execute('SELECT * FROM summaries WHERE meeting_id = ?', (meeting_id,))
-                summary_row = cursor.fetchone()
-                
-                # 组装完整的会议数据
-                meeting_data = {
-                    'id': meeting_row['id'],
-                    'title': meeting_row['title'],
-                    'date': meeting_row['date'],
-                    'duration': meeting_row['duration'],
-                    'transcript': transcript_row['content'] if transcript_row else '',
-                    'public_id': summary_row['public_id'] if summary_row else None,
-                    'participants': json.loads(summary_row['participants']) if summary_row and summary_row['participants'] else [],
-                    'key_points': json.loads(summary_row['key_points']) if summary_row and summary_row['key_points'] else [],
-                    'decisions': json.loads(summary_row['decisions']) if summary_row and summary_row['decisions'] else [],
-                    'action_items': json.loads(summary_row['action_items']) if summary_row and summary_row['action_items'] else [],
-                    'next_steps': json.loads(summary_row['next_steps']) if summary_row and summary_row['next_steps'] else []
+                return {
+                    'id': row['id'],
+                    'title': json.loads(row['summary']).get('title', '会议摘要'),
+                    'date': json.loads(row['summary']).get('date', row['created_at'][:10] if row['created_at'] else ''),
+                    'participants': json.loads(row['summary']).get('participants', []),
+                    'agenda': json.loads(row['summary']).get('agenda', []),
+                    'key_metrics': json.loads(row['summary']).get('key_metrics', []),
+                    'next_meeting': json.loads(row['summary']).get('next_meeting', ''),
+                    'duration': json.loads(row['summary']).get('duration', ''),
+                    'transcript': row['transcript'],
+                    'natural_summary': row['natural_summary'],
+                    'created_at': row['created_at']
                 }
                 
-                return meeting_data
-                
         except Exception as e:
-            print(f"❌ 获取会议数据失败: {e}")
+            print(f"❌ 获取摘要数据失败: {e}")
             return None
     
-    def get_all_meetings(self) -> List[dict]:
-        """获取所有会议的列表（不包含转录内容，减少数据传输）"""
+    def get_all_digests(self, limit: int = 50) -> List[dict]:
+        """获取所有摘要的列表（包含完整摘要信息，不包含转录内容）"""
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 
                 cursor.execute('''
-                    SELECT m.id, m.title, m.date, m.duration,
-                           s.public_id, s.participants, s.key_points, s.decisions, s.action_items, s.next_steps
-                    FROM meetings m
-                    LEFT JOIN summaries s ON m.id = s.meeting_id
-                    ORDER BY m.created_at DESC
-                ''')
+                    SELECT id, summary, created_at
+                    FROM meeting_digests
+                    ORDER BY created_at DESC
+                    LIMIT ?
+                ''', (limit,))
                 
-                meetings = []
+                digests = []
                 for row in cursor.fetchall():
-                    meeting_data = {
+                    summary_data = json.loads(row['summary'])
+                    # 由于现在summary字段为空字典，使用默认值
+                    digests.append({
                         'id': row['id'],
-                        'title': row['title'],
-                        'date': row['date'],
-                        'duration': row['duration'],
-                        'transcript': '',  # 列表中不包含转录内容
-                        'public_id': row['public_id'],
-                        'participants': json.loads(row['participants']) if row['participants'] else [],
-                        'key_points': json.loads(row['key_points']) if row['key_points'] else [],
-                        'decisions': json.loads(row['decisions']) if row['decisions'] else [],
-                        'action_items': json.loads(row['action_items']) if row['action_items'] else [],
-                        'next_steps': json.loads(row['next_steps']) if row['next_steps'] else []
-                    }
-                    meetings.append(meeting_data)
+                        'title': summary_data.get('title', '会议摘要'),
+                        'date': summary_data.get('date', row['created_at'][:10] if row['created_at'] else ''),
+                        'participants': summary_data.get('participants', []),
+                        'agenda': summary_data.get('agenda', []),
+                        'key_metrics': summary_data.get('key_metrics', []),
+                        'next_meeting': summary_data.get('next_meeting', ''),
+                        'duration': summary_data.get('duration', ''),
+                        'created_at': row['created_at']
+                    })
                 
-                return meetings
+                return digests
                 
         except Exception as e:
-            print(f"❌ 获取会议列表失败: {e}")
+            print(f"❌ 获取摘要列表失败: {e}")
             return []
     
-    def get_meeting_by_public_id(self, public_id: str) -> Optional[dict]:
-        """通过公开ID获取会议摘要（用于分享链接）"""
+    def delete_digest(self, digest_id: str) -> bool:
+        """删除摘要数据"""
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 
-                # 通过public_id获取摘要信息
-                cursor.execute('SELECT * FROM summaries WHERE public_id = ?', (public_id,))
-                summary_row = cursor.fetchone()
-                
-                if not summary_row:
-                    return None
-                
-                # 获取会议基本信息
-                cursor.execute('SELECT * FROM meetings WHERE id = ?', (summary_row['meeting_id'],))
-                meeting_row = cursor.fetchone()
-                
-                if not meeting_row:
-                    return None
-                
-                # 获取转录内容
-                cursor.execute('SELECT content FROM transcripts WHERE meeting_id = ?', (summary_row['meeting_id'],))
-                transcript_row = cursor.fetchone()
-                
-                # 组装会议数据（不包含敏感信息）
-                meeting_data = {
-                    'id': meeting_row['id'],
-                    'title': meeting_row['title'],
-                    'date': meeting_row['date'],
-                    'duration': meeting_row['duration'],
-                    'transcript': transcript_row['content'] if transcript_row else '',
-                    'public_id': summary_row['public_id'],
-                    'participants': json.loads(summary_row['participants']) if summary_row['participants'] else [],
-                    'key_points': json.loads(summary_row['key_points']) if summary_row['key_points'] else [],
-                    'decisions': json.loads(summary_row['decisions']) if summary_row['decisions'] else [],
-                    'action_items': json.loads(summary_row['action_items']) if summary_row['action_items'] else [],
-                    'next_steps': json.loads(summary_row['next_steps']) if summary_row['next_steps'] else []
-                }
-                
-                return meeting_data
-                
-        except Exception as e:
-            print(f"❌ 通过公开ID获取会议数据失败: {e}")
-            return None
-    
-    def delete_meeting(self, meeting_id: str) -> bool:
-        """删除会议及其相关数据"""
-        try:
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                
-                # 删除摘要
-                cursor.execute('DELETE FROM summaries WHERE meeting_id = ?', (meeting_id,))
-                
-                # 删除转录
-                cursor.execute('DELETE FROM transcripts WHERE meeting_id = ?', (meeting_id,))
-                
-                # 删除会议
-                cursor.execute('DELETE FROM meetings WHERE id = ?', (meeting_id,))
+                cursor.execute('DELETE FROM meeting_digests WHERE id = ?', (digest_id,))
                 
                 conn.commit()
                 return cursor.rowcount > 0
                 
         except Exception as e:
-            print(f"❌ 删除会议失败: {e}")
+            print(f"❌ 删除摘要失败: {e}")
+            return False
+    
+    def clear_database(self) -> bool:
+        """清空数据库中的所有数据"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute('DELETE FROM meeting_digests')
+                
+                conn.commit()
+                print(f"✅ 数据库已清空: {self.db_path}")
+                return True
+                
+        except Exception as e:
+            print(f"❌ 清空数据库失败: {e}")
             return False
     
     def get_database_stats(self) -> dict:
@@ -273,19 +177,11 @@ class DatabaseManager:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 
-                cursor.execute('SELECT COUNT(*) as count FROM meetings')
-                meeting_count = cursor.fetchone()['count']
-                
-                cursor.execute('SELECT COUNT(*) as count FROM transcripts')
-                transcript_count = cursor.fetchone()['count']
-                
-                cursor.execute('SELECT COUNT(*) as count FROM summaries')
-                summary_count = cursor.fetchone()['count']
+                cursor.execute('SELECT COUNT(*) as count FROM meeting_digests')
+                digest_count = cursor.fetchone()['count']
                 
                 return {
-                    'meetings': meeting_count,
-                    'transcripts': transcript_count,
-                    'summaries': summary_count,
+                    'total_digests': digest_count,
                     'database_path': self.db_path
                 }
                 
