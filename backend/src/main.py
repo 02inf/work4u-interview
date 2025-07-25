@@ -52,15 +52,19 @@ class TranscriptRequest(BaseModel):
 # 数据库管理器已在 database.py 中初始化
 def get_prompt_template(transcript: str) -> str:
     return f"""
+你保证你输出的语言和输入语言保持一致，比如输入是英文，输出也必须是英文。
 请分析以下会议转录内容，生成专业的会议摘要。
 
 **重要格式要求：**
+- 首先生成一个简洁有意义的会议名称（不超过30个字符）
 - 每个标题后必须有空行
 - 每个列表项必须独占一行
 - 段落之间必须有空行分隔
 - 必须保留词语间的空格
 
 **输出格式示例：**
+
+# 项目技术架构讨论会
 
 ## 会议概述
 
@@ -77,7 +81,7 @@ def get_prompt_template(transcript: str) -> str:
 - **张三（项目经理）：** 制定详细项目计划 *（截止时间：2024年3月）*
 - **李四（技术负责人）：** 完成技术方案设计 *（截止时间：2024年3月）*
 
-请严格按照上述格式分析以下会议内容：
+请严格按照上述格式分析以下会议内容，必须以会议名称开头：
 
 {transcript}
 """
@@ -86,13 +90,24 @@ def generate_meeting_summary_with_ai(transcript: str) -> tuple[dict, str]:
     返回: (结构化摘要, 自然语言摘要)
     """
     if not client:
-        raise Exception("AI API未配置，请设置AI_API_KEY环境变量")
+        print("⚠️ AI API未配置，返回模拟摘要")
+        mock_summary = {
+            "title": "模拟会议摘要",
+            "date": datetime.now().strftime('%Y-%m-%d'),
+            "participants": ["用户"],
+            "agenda": [],
+            "key_metrics": [],
+            "next_meeting": "",
+            "duration": "N/A"
+        }
+        mock_natural_summary = "# 模拟会议摘要\n\n这是一个模拟生成的会议摘要。"
+        return mock_summary, mock_natural_summary
     
     try:
         response = client.chat.completions.create(
             model=AI_MODEL,
             messages=[
-                {"role": "system", "content": "你是一个专业的会议分析专家。重要：你必须在输出中包含换行符(\n)来分隔不同的段落和列表项。每个标题、段落和列表项都必须独占一行。请严格按照Markdown格式输出，确保包含正确的换行符和空格。"},
+                {"role": "system", "content": "你是一个专业的会议分析专家，并且你保证你输出的语言和输入语言保持一致，比如输入是英文，输出也必须是英文"},
                 {"role": "user", "content": get_prompt_template(transcript)}
             ],
             temperature=0.3,
@@ -104,11 +119,7 @@ def generate_meeting_summary_with_ai(transcript: str) -> tuple[dict, str]:
             print("⚠️AI response is empty")
             raise Exception("AI response is empty")
             
-        # 现在AI只返回自然语言摘要，不再包含JSON格式
         natural_summary = content.strip()
-        
-        print(f"📝 获取到自然语言摘要长度: {len(natural_summary)}")
-        
         return natural_summary
         
     except Exception as e:
@@ -118,7 +129,21 @@ def generate_meeting_summary_with_ai(transcript: str) -> tuple[dict, str]:
 async def generate_meeting_summary_with_ai_stream(transcript: str):
     """使用AI生成会议摘要（优化的流式响应）"""
     if not client:
-        raise Exception("AI API未配置，请设置AI_API_KEY环境变量")
+        print("⚠️ AI API未配置，模拟流式响应")
+        mock_natural_summary = "# 模拟会议摘要\n\n这是一个模拟生成的会议摘要。"
+        # 模拟流式输出
+        for char in mock_natural_summary:
+            yield {
+                "event": "text_chunk",
+                "data": char
+            }
+            await asyncio.sleep(0.02)
+        
+        yield {
+            "event": "complete",
+            "data": mock_natural_summary
+        }
+        return
     
     try:
         print(f"🤖 开始AI流式处理，转录长度: {len(transcript)} 字符")
@@ -133,7 +158,7 @@ async def generate_meeting_summary_with_ai_stream(transcript: str):
         stream = client.chat.completions.create(
             model=AI_MODEL,
             messages=[
-                {"role": "system", "content": "你是一个专业的会议分析专家。重要：你必须在输出中包含换行符(\n)来分隔不同的段落和列表项。每个标题、段落和列表项都必须独占一行。请严格按照Markdown格式输出，确保包含正确的换行符和空格。"},
+                {"role": "system", "content": "你是一个专业的会议分析专家，并且你保证你输出的语言和输入语言保持一致，比如输入是英文，输出也必须是英文"},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.3,
@@ -211,8 +236,23 @@ async def generate_meeting_summary_with_ai_stream(transcript: str):
             }, ensure_ascii=False)
         }
 
-# extract_summary_from_text 函数已删除，因为现在AI只返回纯文本摘要
-
+def extract_meeting_name_from_summary(summary_text: str) -> str:
+    """从AI生成的摘要中提取会议名称"""
+    if not summary_text:
+        return "会议摘要"
+    
+    lines = summary_text.strip().split('\n')
+    for line in lines:
+        line = line.strip()
+        # 查找以 # 开头的标题行（会议名称）
+        if line.startswith('# ') and len(line) > 2:
+            meeting_name = line[2:].strip()
+            # 限制长度并清理格式
+            if meeting_name and len(meeting_name) <= 50:
+                return meeting_name
+    
+    # 如果没有找到标题，返回默认名称
+    return "会议摘要"
 
 
 async def generate_meeting_summary(transcript: str) -> str:
@@ -229,11 +269,7 @@ async def generate_meeting_summary(transcript: str) -> str:
         return natural_summary
         
     except Exception as e:
-        print(f"⚠️ AI摘要生成失败: {e}")
-        print(f"使用备用摘要方案")
-        # 使用备用摘要方案，确保总是能返回结果
-        natural_summary = f"会议摘要 - {datetime.now().strftime('%Y年%m月%d日')}\n\n本次会议讨论了项目的整体进展，确认了下一阶段的目标，并分析了当前面临的挑战。"
-        return natural_summary
+        raise Exception(f"摘要生成失败: {str(e)}")
 
 @app.get("/")
 async def root():
@@ -249,15 +285,23 @@ async def generate_summary(request: TranscriptRequest):
         # 生成摘要（异步调用）
         natural_summary = await generate_meeting_summary(request.transcript)
         
-        # 保存到数据库（只保存自然语言摘要）
-        digest_id = db_manager.save_digest(request.transcript, {}, natural_summary)
+        # 提取会议名称
+        meeting_name = extract_meeting_name_from_summary(natural_summary)
+        print(f"📝 提取到会议名称: {meeting_name}")
+        
+        # 保存到数据库（包含会议名称）
+        digest_id = db_manager.save_digest(request.transcript, {}, natural_summary, meeting_name)
         print(f"✅ 摘要数据已保存到数据库: {digest_id}")
+        
+        # 获取保存后的完整数据（包含数据库生成的创建时间）
+        saved_digest = db_manager.get_digest(digest_id)
         
         # 只返回自然语言摘要给前端，结构化数据已保存到数据库
         return {
             "summary": {
                 "id": digest_id,
-                "natural_summary": natural_summary
+                "natural_summary": natural_summary,
+                "created_at": saved_digest['created_at'] if saved_digest else datetime.now().isoformat(),
             }
         }
     
@@ -312,22 +356,34 @@ async def generate_summary_stream(request: TranscriptRequest):
                     natural_summary = natural_summary
                     print(f"📝 从流式处理中获取自然语言摘要，长度: {len(natural_summary)}")
             else:
-                # 使用备用摘要（静默处理）
-                natural_summary = f"会议摘要 - {datetime.now().strftime('%Y年%m月%d日')}\n\n本次会议讨论了项目的整体进展，确认了下一阶段的目标，并分析了当前面临的挑战。"
+                # throw 异常
+                raise Exception("备用AI处理失败")
             
             # 保存到数据库（静默处理）
             
-            # 保存原文和AI生成的摘要到数据库（只保存自然语言摘要）
-            digest_id = db_manager.save_digest(request.transcript, {}, natural_summary)
-            current_timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            print(f"✅ 原文和摘要已保存到数据库: {digest_id}, 时间戳: {current_timestamp}")
+            # 提取会议名称
+            meeting_name = extract_meeting_name_from_summary(natural_summary)
+            print(f"📝 从流式处理中提取到会议名称: {meeting_name}")
+            
+            # 保存原文和AI生成的摘要到数据库（包含会议名称）
+            digest_id = db_manager.save_digest(request.transcript, {}, natural_summary, meeting_name)
+            
+            # 获取保存后的完整数据（包含数据库生成的创建时间）
+            saved_digest = db_manager.get_digest(digest_id)
+            actual_created_at = saved_digest['created_at'] if saved_digest else datetime.now().isoformat()
+            
+            print(f"✅ 原文和摘要已保存到数据库: {digest_id}, 创建时间: {actual_created_at}")
             
             await asyncio.sleep(0.2)
             
-            # 发送最终完成事件（发送完整的自然语言摘要文本）
+            # 发送最终完成事件（包含摘要内容和数据库中的实际创建时间）
             yield {
                 "event": "summary_complete",
-                "data": natural_summary
+                "data": json.dumps({
+                    "id": digest_id,
+                    "natural_summary": natural_summary,
+                    "created_at": actual_created_at
+                }, ensure_ascii=False)
             }
             
             # 处理完成（静默处理，不发送额外通知）

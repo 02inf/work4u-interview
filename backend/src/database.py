@@ -35,37 +35,44 @@ class DatabaseManager:
             cursor.execute('DROP TABLE IF EXISTS summaries')
             cursor.execute('DROP TABLE IF EXISTS transcripts')
             cursor.execute('DROP TABLE IF EXISTS meetings')
+            # 删除旧的meeting_digests表以应用新的时间字段结构
+            cursor.execute('DROP TABLE IF EXISTS meeting_digests')
             
             # 创建简化的会议摘要表
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS meeting_digests (
                     id TEXT PRIMARY KEY,
+                    meeting_name TEXT,
                     transcript TEXT NOT NULL,
                     natural_summary TEXT,
                     summary TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP
                 )
             ''')
             
             conn.commit()
             print(f"✅ 简化数据库初始化完成: {self.db_path}")
     
-    def save_digest(self, transcript: str, summary: dict, natural_summary: str = None) -> str:
+    def save_digest(self, transcript: str, summary: dict, natural_summary: str = None, meeting_name: str = None) -> str:
         """保存会议摘要数据"""
         try:
             digest_id = str(uuid.uuid4())
+            # 使用本地时间
+            local_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 
                 cursor.execute('''
-                    INSERT INTO meeting_digests (id, transcript, natural_summary, summary)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO meeting_digests (id, meeting_name, transcript, natural_summary, summary, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 ''', (
                     digest_id,
+                    meeting_name,
                     transcript,
                     natural_summary,
-                    json.dumps(summary, ensure_ascii=False)
+                    json.dumps(summary, ensure_ascii=False),
+                    local_time
                 ))
                 
                 conn.commit()
@@ -87,9 +94,20 @@ class DatabaseManager:
                 if not row:
                     return None
                 
+                # 格式化时间为ISO格式
+                created_at = row['created_at']
+                if created_at and len(created_at) == 19:  # 'YYYY-MM-DD HH:MM:SS' 格式
+                    # 转换为ISO格式
+                    try:
+                        dt = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S')
+                        created_at = dt.isoformat()
+                    except:
+                        pass  # 保持原格式
+                
                 return {
                     'id': row['id'],
-                    'title': json.loads(row['summary']).get('title', '会议摘要'),
+                    'title': row['meeting_name'] or (json.loads(row['summary']).get('title') if row['summary'] else (row['natural_summary'].split('\n')[0].replace('#', '').strip() if row['natural_summary'] else '会议摘要')),
+                    'meeting_name': row['meeting_name'],
                     'date': json.loads(row['summary']).get('date', row['created_at'][:10] if row['created_at'] else ''),
                     'participants': json.loads(row['summary']).get('participants', []),
                     'agenda': json.loads(row['summary']).get('agenda', []),
@@ -98,7 +116,7 @@ class DatabaseManager:
                     'duration': json.loads(row['summary']).get('duration', ''),
                     'transcript': row['transcript'],
                     'natural_summary': row['natural_summary'],
-                    'created_at': row['created_at']
+                    'created_at': created_at
                 }
                 
         except Exception as e:
@@ -112,7 +130,7 @@ class DatabaseManager:
                 cursor = conn.cursor()
                 
                 cursor.execute('''
-                    SELECT id, summary, created_at
+                    SELECT id, meeting_name, summary, natural_summary, created_at
                     FROM meeting_digests
                     ORDER BY created_at DESC
                     LIMIT ?
@@ -121,17 +139,28 @@ class DatabaseManager:
                 digests = []
                 for row in cursor.fetchall():
                     summary_data = json.loads(row['summary'])
-                    # 由于现在summary字段为空字典，使用默认值
+                    # 格式化时间为ISO格式
+                    created_at = row['created_at']
+                    if created_at and len(created_at) == 19:  # 'YYYY-MM-DD HH:MM:SS' 格式
+                        # 转换为ISO格式
+                        try:
+                            dt = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S')
+                            created_at = dt.isoformat()
+                        except:
+                            pass  # 保持原格式
+                    
                     digests.append({
                         'id': row['id'],
-                        'title': summary_data.get('title', '会议摘要'),
+                        'title': row['meeting_name'] or (summary_data.get('title') if summary_data else (row['natural_summary'].split('\n')[0].replace('#', '').strip() if row['natural_summary'] else '会议摘要')),
+                        'meeting_name': row['meeting_name'],
                         'date': summary_data.get('date', row['created_at'][:10] if row['created_at'] else ''),
                         'participants': summary_data.get('participants', []),
                         'agenda': summary_data.get('agenda', []),
                         'key_metrics': summary_data.get('key_metrics', []),
                         'next_meeting': summary_data.get('next_meeting', ''),
                         'duration': summary_data.get('duration', ''),
-                        'created_at': row['created_at']
+                        'natural_summary': row['natural_summary'],
+                        'created_at': created_at
                     })
                 
                 return digests

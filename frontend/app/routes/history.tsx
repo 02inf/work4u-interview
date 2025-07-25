@@ -1,7 +1,9 @@
 import type { Route } from "./+types/history";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import ReactMarkdown from "react-markdown";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { MeetingSummary } from "~/types";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -10,44 +12,27 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-interface MeetingSummary {
-  id: string;
-  title: string;
-  date: string;
-  participants: string[];
-  duration?: string;
-  transcript: string;
-  public_id?: string;
-  natural_summary?: string;
-}
+// 获取会议列表的函数
+const fetchMeetings = async (): Promise<MeetingSummary[]> => {
+  const response = await fetch('http://localhost:8000/api/meetings');
+  if (!response.ok) {
+    throw new Error('Failed to fetch meetings');
+  }
+  const data = await response.json();
+  return data.meetings || [];
+};
 
 export default function History() {
-  const [digests, setDigests] = useState<MeetingSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const fetchMeetings = async () => {
-      try {
-        const response = await fetch('http://localhost:8000/api/meetings');
-        if (response.ok) {
-          const data = await response.json();
-          setDigests(data.meetings || []);
-        } else {
-          console.error('Failed to fetch meetings');
-        }
-      } catch (error) {
-        console.error('Error fetching meetings:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchMeetings();
-    console.log(11);
-    
-  }, []);
+  // 使用React Query获取会议数据
+  const { data: digests = [], isLoading, error } = useQuery({
+    queryKey: ['meetings'],
+    queryFn: fetchMeetings,
+    staleTime: 1000,
+  });
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -61,12 +46,12 @@ export default function History() {
 
   const handleShare = async (digest: MeetingSummary, event: React.MouseEvent) => {
     event.stopPropagation(); // 阻止事件冒泡
-    if (!digest.public_id) {
+    if (!digest.id) {
       alert('This digest is not shareable.');
       return;
     }
 
-    const shareUrl = `${window.location.origin}/digest/${digest.public_id}`;
+    const shareUrl = `${window.location.origin}/digest/${digest.id}`;
     
     try {
       await navigator.clipboard.writeText(shareUrl);
@@ -102,8 +87,10 @@ export default function History() {
       });
       
       if (response.ok) {
-        // 从列表中移除已删除的会议
-        setDigests(prevDigests => prevDigests.filter(d => d.id !== digest.id));
+        // 使用React Query的缓存更新机制
+        queryClient.setQueryData(['meetings'], (oldData: MeetingSummary[] | undefined) => {
+          return oldData ? oldData.filter(d => d.id !== digest.id) : [];
+        });
       } else {
         alert('Delete failed. Please try again later.');
       }
@@ -170,16 +157,15 @@ export default function History() {
                       {digest.title}
                     </h2>
                     <div className="flex flex-wrap gap-4 text-sm text-gray-500">
-                      <span>📅 {formatDate(digest.date)}</span>
+                      <span>📅 {formatDate(digest.created_at || digest.date)}</span>
                       {digest.duration && <span>⏱️ {digest.duration}</span>}
-                      <span>👥 {(digest.participants || []).join(', ')}</span>
                     </div>
                   </div>
                   <div className="flex gap-2">
                     <button 
                       onClick={(e) => handleShare(digest, e)}
                       className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1 transition-colors"
-                      disabled={!digest.public_id}
+                      disabled={!digest.id}
                     >
                       {copiedId === digest.id ? (
                         <>

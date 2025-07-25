@@ -6,9 +6,22 @@ import {
   Scripts,
   ScrollRestoration,
 } from "react-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import type { Route } from "./+types/root";
 import "./app.css";
+
+// 创建QueryClient实例，配置staleTime防止重复调用
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime:  1000,
+      gcTime: 10 * 60 * 1000,
+      retry: 1, // 失败时重试1次
+      refetchOnWindowFocus: false, // 窗口聚焦时不自动重新请求
+    },
+  },
+});
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -42,7 +55,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  return <Outlet />;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Outlet />
+    </QueryClientProvider>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
