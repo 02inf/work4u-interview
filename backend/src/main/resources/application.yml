@@ -1,0 +1,31 @@
+server:
+  port: 8080
+
+spring:
+  data:
+    mongodb:
+      host: yourmongohost
+      port: 27001
+      database: meeting_summary
+      username: username
+      password: password
+      authentication-database: admin
+  
+  application:
+    name: meeting-summary
+  
+  # 增加异步请求超时配置
+  mvc:
+    async:
+      request-timeout: 120000  # 120秒超时
+
+# Gemini API Configuration
+gemini:
+  api:
+    key: your-key
+    url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent
+
+logging:
+  level:
+    com.work4u.meetingsummary: DEBUG
+    org.springframework.web: DEBUG
