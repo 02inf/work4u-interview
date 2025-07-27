@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { apiClient, DigestResponse } from '@/lib/api';
+import { apiClient, DigestResponse } from '@/services/api';
 import { toast } from 'sonner';
 
 interface StreamChunk {

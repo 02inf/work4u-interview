@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { apiClient, DigestListResponse } from '@/lib/api';
+import { apiClient, DigestListResponse } from '@/services/api';
 import { toast } from 'sonner';
 
 export default function DigestsPage() {

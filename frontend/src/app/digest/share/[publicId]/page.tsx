@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { apiClient, DigestDetailResponse } from '@/lib/api';
+import { apiClient, DigestDetailResponse } from '@/services/api';
 import { toast } from 'sonner';
 
 export default function SharedDigestPage() {
