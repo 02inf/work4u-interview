@@ -2,12 +2,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import os
 from dotenv import load_dotenv
-from .schemas.digest import Base
+from .schemas.chat import Base
 
 load_dotenv()
 
 # Database URL - defaults to SQLite for development
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./meeting_digests.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./chat_sessions.db")
 
 engine = create_engine(
     DATABASE_URL,

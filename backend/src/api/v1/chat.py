@@ -1,0 +1,308 @@
+from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import StreamingResponse
+from typing import List
+from google import genai
+from datetime import datetime
+import uuid
+import json
+import asyncio
+import os
+from sqlalchemy.orm import Session
+
+from ...models import ChatCreateRequest, ChatUpdateRequest, ChatResponse, APIResponse
+from ...schemas import Session as SessionModel, Chat
+from ...constants import DEFAULT_GEMINI_MODEL
+from ...prompts.digest import get_digest_prompt
+from ..deps import get_database
+
+router = APIRouter()
+
+
+def get_client():
+    """Get Gemini client with API key"""
+    return genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+
+def parse_digest_response(response_text: str):
+    """
+    Parse AI response into structured components.
+    For now, returns the full text as overview and empty arrays for the lists.
+    This should be improved to properly parse structured content.
+    """
+    # Simple implementation - in a real system you'd parse structured content
+    return response_text.strip(), [], []
+
+
+@router.post("/chats")
+async def create_chat(
+    request: ChatCreateRequest, db: Session = Depends(get_database)
+):
+    """
+    Create a chat from transcript with streaming response
+    """
+    # Validate session exists
+    session = db.query(SessionModel).filter(SessionModel.session_id == request.session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    async def generate_chat_stream():
+        try:
+            # Get prompt and generate streaming content
+            prompt = get_digest_prompt(request.transcript)
+            client = get_client()
+
+            response = client.models.generate_content_stream(
+                model=DEFAULT_GEMINI_MODEL, contents=prompt
+            )
+
+            # Collect full content while streaming
+            full_content = ""
+            for chunk in response:
+                if chunk.text:
+                    full_content += chunk.text
+                    # Stream each chunk to client
+                    yield f"data: {json.dumps({'type': 'content', 'text': chunk.text})}\n\n"
+                    await asyncio.sleep(0)  # Allow other tasks to run
+
+            if not full_content.strip():
+                raise HTTPException(
+                    status_code=500, detail="AI service returned empty response"
+                )
+
+            # Parse the response into structured components
+            overview, key_decisions, action_items = parse_digest_response(full_content)
+
+            # Save to database
+            db_chat = Chat(
+                session_id=request.session_id,
+                original_transcript=request.transcript,
+                summary=full_content,
+                overview=overview,
+                key_decisions=key_decisions,
+                action_items=action_items,
+                created_at=datetime.utcnow(),
+            )
+
+            db.add(db_chat)
+            db.commit()
+            db.refresh(db_chat)
+            
+            # Update session timestamp
+            session.updated_at = datetime.utcnow()
+            db.commit()
+
+            # Send completion event with parsed data
+            chat_data = {
+                "id": db_chat.id,
+                "chat_id": db_chat.chat_id,
+                "session_id": db_chat.session_id,
+                "overview": db_chat.overview,
+                "key_decisions": db_chat.key_decisions,
+                "action_items": db_chat.action_items,
+                "created_at": db_chat.created_at.isoformat(),
+            }
+            yield f"data: {json.dumps({'type': 'complete', 'chat': chat_data})}\n\n"
+
+        except ValueError as e:
+            db.rollback()
+            yield f"data: {json.dumps({'type': 'error', 'message': f'Invalid input: {str(e)}'})}\n\n"
+        except Exception as e:
+            db.rollback()
+            error_msg = str(e)
+            if "quota" in error_msg.lower():
+                yield f"data: {json.dumps({'type': 'error', 'message': 'AI service quota exceeded. Please try again later.'})}\n\n"
+            elif "timeout" in error_msg.lower():
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Request timeout. Please try again.'})}\n\n"
+            else:
+                yield f"data: {json.dumps({'type': 'error', 'message': f'Error processing transcript: {error_msg}'})}\n\n"
+
+    return StreamingResponse(
+        generate_chat_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+        },
+    )
+
+
+@router.get("/chats", response_model=APIResponse[List[ChatResponse]])
+async def get_chats(session_id: str = None, db: Session = Depends(get_database)):
+    """
+    Get all chats, optionally filtered by session_id
+    """
+    query = db.query(Chat)
+    if session_id:
+        # Validate session exists
+        session = db.query(SessionModel).filter(SessionModel.session_id == session_id).first()
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        query = query.filter(Chat.session_id == session_id)
+    
+    chats = query.order_by(Chat.created_at.desc()).all()
+    chats_data = [
+        ChatResponse(
+            id=chat.id,
+            chat_id=chat.chat_id,
+            session_id=chat.session_id,
+            overview=chat.overview,
+            key_decisions=chat.key_decisions,
+            action_items=chat.action_items,
+            created_at=chat.created_at,
+        )
+        for chat in chats
+    ]
+    
+    return APIResponse(
+        message="Chats retrieved successfully",
+        data=chats_data
+    )
+
+
+@router.get("/chats/{chat_id}", response_model=APIResponse[ChatResponse])
+async def get_chat_by_id(chat_id: str, db: Session = Depends(get_database)):
+    """
+    Get a specific chat by chat_id
+    """
+    chat = db.query(Chat).filter(Chat.chat_id == chat_id).first()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+
+    chat_data = ChatResponse(
+        id=chat.id,
+        chat_id=chat.chat_id,
+        session_id=chat.session_id,
+        overview=chat.overview,
+        key_decisions=chat.key_decisions,
+        action_items=chat.action_items,
+        created_at=chat.created_at,
+    )
+    
+    return APIResponse(
+        message="Chat retrieved successfully",
+        data=chat_data
+    )
+
+
+@router.put("/chats/{chat_id}", response_model=APIResponse[ChatResponse])
+async def update_chat(
+    chat_id: str, request: ChatUpdateRequest, db: Session = Depends(get_database)
+):
+    """
+    Update a chat with new transcript
+    """
+    chat = db.query(Chat).filter(Chat.chat_id == chat_id).first()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    
+    # Validate session exists and matches
+    session = db.query(SessionModel).filter(SessionModel.session_id == request.session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    if chat.session_id != request.session_id:
+        raise HTTPException(status_code=400, detail="Session ID mismatch")
+
+    # Update the original transcript
+    chat.original_transcript = request.transcript
+
+    try:
+        # Re-generate chat with new transcript
+        prompt = get_digest_prompt(request.transcript)
+
+        client = get_client()
+        response = client.models.generate_content(
+            model=DEFAULT_GEMINI_MODEL, contents=prompt
+        )
+
+        if not response or not response.text:
+            raise HTTPException(
+                status_code=500, detail="AI service returned empty response"
+            )
+
+        # Parse the response into structured components  
+        overview, key_decisions, action_items = parse_digest_response(response.text)
+        
+        # Update chat fields
+        chat.summary = response.text
+        chat.overview = overview
+        chat.key_decisions = key_decisions
+        chat.action_items = action_items
+        
+        # Update session timestamp
+        session.updated_at = datetime.utcnow()
+
+        db.commit()
+        db.refresh(chat)
+
+        chat_data = ChatResponse(
+            id=chat.id,
+            chat_id=chat.chat_id,
+            session_id=chat.session_id,
+            overview=chat.overview,
+            key_decisions=chat.key_decisions,
+            action_items=chat.action_items,
+            created_at=chat.created_at,
+        )
+        
+        return APIResponse(
+            message="Chat updated successfully",
+            data=chat_data
+        )
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating chat: {str(e)}")
+
+
+@router.delete("/chats/{chat_id}", response_model=APIResponse[dict])
+async def delete_chat(chat_id: str, session_id: str, db: Session = Depends(get_database)):
+    """
+    Delete a chat (requires session_id for validation)
+    """
+    chat = db.query(Chat).filter(Chat.chat_id == chat_id).first()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    
+    # Validate session exists and matches
+    session = db.query(SessionModel).filter(SessionModel.session_id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    if chat.session_id != session_id:
+        raise HTTPException(status_code=400, detail="Session ID mismatch")
+
+    db.delete(chat)
+    
+    # Update session timestamp
+    session.updated_at = datetime.utcnow()
+    db.commit()
+    
+    return APIResponse(
+        message="Chat deleted successfully",
+        data={"chat_id": chat_id}
+    )
+
+
+@router.delete("/chats/clear", response_model=APIResponse[dict])
+async def clear_all_chats(session_id: str = None, db: Session = Depends(get_database)):
+    """
+    Clear all chats, optionally filtered by session_id
+    """
+    query = db.query(Chat)
+    if session_id:
+        # Validate session exists
+        session = db.query(SessionModel).filter(SessionModel.session_id == session_id).first()
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        query = query.filter(Chat.session_id == session_id)
+    
+    count = query.count()
+    query.delete()
+    db.commit()
+    
+    return APIResponse(
+        message=f"Cleared {count} chats from database",
+        data={"cleared_count": count}
+    )
