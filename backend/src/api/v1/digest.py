@@ -1,18 +1,24 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from typing import List
-import google.generativeai as genai
+from google import genai
 from datetime import datetime
 import uuid
 import json
 import asyncio
+import os
 from sqlalchemy.orm import Session
 
 from ...models import TranscriptRequest, DigestResponse
 from ...schemas import Digest
+from ...constants import DEFAULT_GEMINI_MODEL
 from ..deps import get_database
 
 router = APIRouter()
+
+def get_client():
+    """Get Gemini client with API key"""
+    return genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 @router.post("/digest", response_model=DigestResponse)
 async def create_digest(request: TranscriptRequest, db: Session = Depends(get_database)):
@@ -24,9 +30,6 @@ async def create_digest(request: TranscriptRequest, db: Session = Depends(get_da
         raise HTTPException(status_code=400, detail="Transcript too long (max 50,000 characters)")
     
     try:
-        # Configure the model
-        model = genai.GenerativeModel('gemini-pro')
-        
         # Craft the prompt for structured summary
         prompt = f"""
         Please analyze the following meeting transcript and provide a structured summary with exactly three sections:
@@ -53,8 +56,13 @@ async def create_digest(request: TranscriptRequest, db: Session = Depends(get_da
         {request.transcript}
         """
         
-        # Generate content with timeout
-        response = model.generate_content(prompt)
+        # Generate content using new library
+        client = get_client()
+        client = get_client()
+        response = client.models.generate_content(
+            model=DEFAULT_GEMINI_MODEL,
+            contents=prompt
+        )
         
         if not response or not response.text:
             raise HTTPException(status_code=500, detail="AI service returned empty response")
@@ -175,7 +183,6 @@ async def update_digest(public_id: str, request: TranscriptRequest, db: Session 
     
     try:
         # Re-generate digest with new transcript
-        model = genai.GenerativeModel('gemini-pro')
         prompt = f"""
         Please analyze the following meeting transcript and provide a structured summary with exactly three sections:
 
@@ -201,7 +208,11 @@ async def update_digest(public_id: str, request: TranscriptRequest, db: Session 
         {request.transcript}
         """
         
-        response = model.generate_content(prompt)
+        client = get_client()
+        response = client.models.generate_content(
+            model=DEFAULT_GEMINI_MODEL,
+            contents=prompt
+        )
         
         if not response or not response.text:
             raise HTTPException(status_code=500, detail="AI service returned empty response")
@@ -281,9 +292,6 @@ async def clear_all_digests(db: Session = Depends(get_database)):
 async def stream_digest(request: TranscriptRequest, db: Session = Depends(get_database)):
     async def generate_stream():
         try:
-            # Configure the model for streaming
-            model = genai.GenerativeModel('gemini-pro')
-            
             # Craft the prompt for structured summary
             prompt = f"""
             Please analyze the following meeting transcript and provide a structured summary with exactly three sections:
@@ -310,22 +318,29 @@ async def stream_digest(request: TranscriptRequest, db: Session = Depends(get_da
             {request.transcript}
             """
             
-            # Generate streaming content
-            response = model.generate_content(prompt, stream=True)
+            # Generate content using new library (non-streaming for now)
+            response = client.models.generate_content(
+                model=DEFAULT_GEMINI_MODEL,
+                contents=prompt
+            )
             
-            full_content = ""
             digest_id = str(uuid.uuid4())
             public_id = str(uuid.uuid4())
             
             # Send initial event with IDs
             yield f"data: {json.dumps({'type': 'start', 'digest_id': digest_id, 'public_id': public_id})}\n\n"
             
-            # Stream the content
-            for chunk in response:
-                if chunk.text:
-                    full_content += chunk.text
-                    yield f"data: {json.dumps({'type': 'content', 'text': chunk.text})}\n\n"
+            # Simulate streaming by sending the full content
+            if response and response.text:
+                full_content = response.text
+                # Send content in chunks to simulate streaming
+                chunk_size = 50
+                for i in range(0, len(full_content), chunk_size):
+                    chunk = full_content[i:i+chunk_size]
+                    yield f"data: {json.dumps({'type': 'content', 'text': chunk})}\n\n"
                     await asyncio.sleep(0.1)  # Small delay for better UX
+            else:
+                full_content = "No response from Gemini"
             
             # Parse the complete response
             overview = ""
