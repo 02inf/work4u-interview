@@ -11,7 +11,5 @@ class Digest(Base):
     id = Column(String, primary_key=True, index=True)
     public_id = Column(String, unique=True, index=True)
     original_transcript = Column(Text, nullable=False)
-    overview = Column(Text, nullable=False)
-    key_decisions = Column(JSON, nullable=False)
-    action_items = Column(JSON, nullable=False)
+    summary = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
