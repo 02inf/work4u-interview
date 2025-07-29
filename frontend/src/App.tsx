@@ -18,7 +18,10 @@ function App() {
   const [streaming, setStreaming] = useState(false)
   const [streamContent, setStreamContent] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'input' | 'history'>('input')
+  const [activeTab, setActiveTab] = useState<'input' | 'history' | 'chat'>('input')
+  const [chatMessage, setChatMessage] = useState('')
+  const [chatResponse, setChatResponse] = useState('')
+  const [chatStreaming, setChatStreaming] = useState(false)
 
   const API_BASE = 'http://localhost:8000'
 
@@ -184,6 +187,75 @@ function App() {
     alert('Share link copied to clipboard!')
   }
 
+  const testGeminiChat = async () => {
+    if (!chatMessage.trim()) {
+      setError('Please enter a message')
+      return
+    }
+
+    setChatStreaming(true)
+    setChatResponse('')
+    setError(null)
+
+    try {
+      const response = await fetch(`${API_BASE}/api/gemini/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+        },
+        body: JSON.stringify({ message: chatMessage }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || `HTTP ${response.status}: Failed to chat`)
+      }
+
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+
+      if (!reader) {
+        throw new Error('No response stream available')
+      }
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value)
+        const lines = chunk.split('\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              
+              if (data.content) {
+                setChatResponse(prev => prev + data.content)
+              } else if (data.done) {
+                break
+              } else if (data.error) {
+                setError(data.error)
+                return
+              }
+            } catch (e) {
+              // Ignore parsing errors for incomplete JSON
+            }
+          }
+        }
+      }
+    } catch (err) {
+      if (err instanceof TypeError && err.message.includes('fetch')) {
+        setError('Cannot connect to server. Please ensure the backend is running.')
+      } else {
+        setError(err instanceof Error ? err.message : 'An error occurred')
+      }
+    } finally {
+      setChatStreaming(false)
+    }
+  }
+
   return (
     <div className="app">
       <header className="app-header">
@@ -203,6 +275,12 @@ function App() {
           onClick={() => setActiveTab('history')}
         >
           Past Digests ({pastDigests.length})
+        </button>
+        <button 
+          className={`tab ${activeTab === 'chat' ? 'active' : ''}`}
+          onClick={() => setActiveTab('chat')}
+        >
+          Chat Test
         </button>
       </nav>
 
@@ -329,6 +407,39 @@ function App() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'chat' && (
+        <div className="chat-test-section">
+          <h2>Gemini Chat Streaming Test</h2>
+          <div className="input-section">
+            <textarea
+              value={chatMessage}
+              onChange={(e) => setChatMessage(e.target.value)}
+              placeholder="Enter your message to test streaming chat..."
+              className="transcript-input"
+              rows={3}
+            />
+            <button 
+              onClick={testGeminiChat}
+              disabled={chatStreaming || !chatMessage.trim()}
+              className="generate-btn"
+            >
+              {chatStreaming ? 'Streaming...' : 'Send Message'}
+            </button>
+            {error && <div className="error">{error}</div>}
+          </div>
+          
+          {(chatResponse || chatStreaming) && (
+            <div className="chat-response">
+              <h3>Response:</h3>
+              <div className="stream-text">
+                {chatResponse}
+                {chatStreaming && <span className="cursor">|</span>}
+              </div>
             </div>
           )}
         </div>
