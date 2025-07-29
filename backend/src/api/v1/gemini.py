@@ -23,9 +23,7 @@ async def chat_with_gemini(request: ChatRequest):
     """
     Streaming chat with Gemini AI using the configured API key
     """
-    
     import asyncio
-    
     try:
         client = get_client()
 
@@ -153,48 +151,6 @@ async def list_available_models():
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error listing models: {str(e)}")
-    """
-    Test streaming response with sleep simulation
-    """
-    import asyncio
-    
-    client = get_client()
-            
-    async def generate_stream():
-
-        response = client.models.generate_content_stream(
-            model=DEFAULT_GEMINI_MODEL, contents=request.message
-        )
-
-        for chunk in response:
-            if chunk.text:
-                print(chunk.text)
-                # Send each chunk as Server-Sent Events format
-                yield f"data: {json.dumps({'content': chunk.text, 'model': DEFAULT_GEMINI_MODEL})}\n\n"
-                
-                await asyncio.sleep(0.5)
-                        
-        yield f"data: {json.dumps({'done': True})}\n\n"
-
-            # # 模拟流式响应，分段发送消息
-            # test_message = f"这是对你消息 '{request.message}' 的流式回复："
-            # words = test_message.split()
-
-            # for i, word in enumerate(words):
-            #     print(f"Sending chunk {i+1}: {word}")  # 调试日志
-            #     # 发送每个词作为一个chunk
-            #     yield f"data: {json.dumps({'content': word + ' ', 'model': 'test-model'})}\n\n"
-            #     await asyncio.sleep(0.5)  # 每个词之间延迟0.5秒
-
-            # # 发送更多测试内容
-            # for i in range(5):
-            #     chunk_text = f"测试块 {i+1} "
-            #     print(f"Sending test chunk: {chunk_text}")
-            #     yield f"data: {json.dumps({'content': chunk_text, 'model': 'test-model'})}\n\n"
-            #     await asyncio.sleep(1)  # 每秒发送一个测试块
-
-            # # 发送结束信号
-            # print("Sending done signal")
 
     return StreamingResponse(
         generate_stream(),
