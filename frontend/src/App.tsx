@@ -135,6 +135,7 @@ function App() {
   const generateNewSession = async () => {
     // call api to generate a new session.
     const ret = await runGenerateSession();
+    debugger;
 
     if (ret?.session_id) {
       navigate(`/${ret.session_id}`);

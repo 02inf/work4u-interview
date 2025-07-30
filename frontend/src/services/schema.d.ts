@@ -258,6 +258,66 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** APIResponse[ChatResponse] */
+        APIResponse_ChatResponse_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /** Message */
+            message: string;
+            data?: components["schemas"]["ChatResponse"] | null;
+        };
+        /** APIResponse[List[ChatResponse]] */
+        APIResponse_List_ChatResponse__: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /** Message */
+            message: string;
+            /** Data */
+            data?: components["schemas"]["ChatResponse"][] | null;
+        };
+        /** APIResponse[List[SessionResponse]] */
+        APIResponse_List_SessionResponse__: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /** Message */
+            message: string;
+            /** Data */
+            data?: components["schemas"]["SessionResponse"][] | null;
+        };
+        /** APIResponse[SessionResponse] */
+        APIResponse_SessionResponse_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /** Message */
+            message: string;
+            data?: components["schemas"]["SessionResponse"] | null;
+        };
+        /** APIResponse[dict] */
+        APIResponse_dict_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /** Message */
+            message: string;
+            /** Data */
+            data?: {
+                [key: string]: unknown;
+            } | null;
+        };
         /** ChatCreateRequest */
         ChatCreateRequest: {
             /**
@@ -404,7 +464,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChatResponse"][];
+                    "application/json": components["schemas"]["APIResponse_List_ChatResponse__"];
                 };
             };
             /** @description Validation Error */
@@ -468,7 +528,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChatResponse"];
+                    "application/json": components["schemas"]["APIResponse_ChatResponse_"];
                 };
             };
             /** @description Validation Error */
@@ -503,7 +563,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChatResponse"];
+                    "application/json": components["schemas"]["APIResponse_ChatResponse_"];
                 };
             };
             /** @description Validation Error */
@@ -536,7 +596,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["APIResponse_dict_"];
                 };
             };
             /** @description Validation Error */
@@ -567,7 +627,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["APIResponse_dict_"];
                 };
             };
             /** @description Validation Error */
@@ -596,7 +656,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionResponse"];
+                    "application/json": components["schemas"]["APIResponse_SessionResponse_"];
                 };
             };
         };
@@ -616,7 +676,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionResponse"][];
+                    "application/json": components["schemas"]["APIResponse_List_SessionResponse__"];
                 };
             };
         };
@@ -638,7 +698,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionResponse"];
+                    "application/json": components["schemas"]["APIResponse_SessionResponse_"];
                 };
             };
             /** @description Validation Error */
@@ -669,7 +729,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["APIResponse_dict_"];
                 };
             };
             /** @description Validation Error */
