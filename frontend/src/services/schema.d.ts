@@ -38,6 +38,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Chat
+         * @description Create a chat with streaming response
+         */
+        post: operations["create_chat_api_v1_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chats": {
         parameters: {
             query?: never;
@@ -51,11 +71,7 @@ export interface paths {
          */
         get: operations["get_chats_api_v1_chats_get"];
         put?: never;
-        /**
-         * Create Chat
-         * @description Create a chat from transcript with streaming response
-         */
-        post: operations["create_chat_api_v1_chats_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -74,11 +90,7 @@ export interface paths {
          * @description Get a specific chat by chat_id
          */
         get: operations["get_chat_by_id_api_v1_chats__chat_id__get"];
-        /**
-         * Update Chat
-         * @description Update a chat with new transcript
-         */
-        put: operations["update_chat_api_v1_chats__chat_id__put"];
+        put?: never;
         post?: never;
         /**
          * Delete Chat
@@ -169,6 +181,26 @@ export interface paths {
          * @description Delete a session and all its chats
          */
         delete: operations["delete_session_api_v1_sessions__session_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sessions/{session_id}/chats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Session Chats
+         * @description Get all chats for a specific session
+         */
+        get: operations["get_session_chats_api_v1_sessions__session_id__chats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -325,11 +357,13 @@ export interface components {
              * @description Session ID for the chat
              */
             session_id: string;
+            /** @description Template for the chat */
+            template: components["schemas"]["Template"];
             /**
-             * Transcript
-             * @description Meeting transcript text
+             * Input
+             * @description User input
              */
-            transcript: string;
+            input: string;
         };
         /** ChatRequest */
         ChatRequest: {
@@ -346,6 +380,8 @@ export interface components {
             session_id: string;
             /** Overview */
             overview: string;
+            /** Original Transcript */
+            original_transcript: string;
             /** Key Decisions */
             key_decisions: string[];
             /** Action Items */
@@ -355,19 +391,6 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-        };
-        /** ChatUpdateRequest */
-        ChatUpdateRequest: {
-            /**
-             * Session Id
-             * @description Session ID for the chat
-             */
-            session_id: string;
-            /**
-             * Transcript
-             * @description Meeting transcript text
-             */
-            transcript: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -389,6 +412,11 @@ export interface components {
              */
             updated_at: string;
         };
+        /**
+         * Template
+         * @enum {string}
+         */
+        Template: "digest" | "chat";
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -447,38 +475,7 @@ export interface operations {
             };
         };
     };
-    get_chats_api_v1_chats_get: {
-        parameters: {
-            query?: {
-                session_id?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["APIResponse_List_ChatResponse__"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_chat_api_v1_chats_post: {
+    create_chat_api_v1_chat_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -511,13 +508,13 @@ export interface operations {
             };
         };
     };
-    get_chat_by_id_api_v1_chats__chat_id__get: {
+    get_chats_api_v1_chats_get: {
         parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                chat_id: string;
+            query?: {
+                session_id?: string;
             };
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -528,7 +525,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["APIResponse_ChatResponse_"];
+                    "application/json": components["schemas"]["APIResponse_List_ChatResponse__"];
                 };
             };
             /** @description Validation Error */
@@ -542,7 +539,7 @@ export interface operations {
             };
         };
     };
-    update_chat_api_v1_chats__chat_id__put: {
+    get_chat_by_id_api_v1_chats__chat_id__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -551,11 +548,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ChatUpdateRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -730,6 +723,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["APIResponse_dict_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_session_chats_api_v1_sessions__session_id__chats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_List_ChatResponse__"];
                 };
             };
             /** @description Validation Error */

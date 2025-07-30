@@ -26,3 +26,13 @@ export const getSessions = () => {
       return response.data.data;
     });
 };
+
+export const getSessionChats = (session_id: string) => {
+  return axios
+    .get<components["schemas"]["APIResponse_List_ChatResponse__"]>(
+      `${API_BASE}/sessions/${session_id}/chats`
+    )
+    .then((response) => {
+      return response.data.data;
+    });
+};
