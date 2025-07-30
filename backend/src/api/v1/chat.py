@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from google.genai import types
 from ...constants import SYSTEM_INSTRUCTION
 
-from ...models import ChatCreateRequest, ChatResponse, APIResponse, Template
+from ...models import ChatCreateRequest, ChatResponse, APIResponse, Template, DigestStructure
 from ...schemas import Session as SessionModel, Chat
 from ...constants import DEFAULT_GEMINI_MODEL
 from ...prompts.digest import get_digest_prompt
@@ -24,14 +24,32 @@ def get_client():
     return genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 
-def parse_digest_response(response_text: str):
+def get_structured_digest(transcript: str, client):
     """
-    Parse AI response into structured components.
-    For now, returns the full text as overview and empty arrays for the lists.
-    This should be improved to properly parse structured content.
+    Get structured digest data using Gemini JSON mode
     """
-    # Simple implementation - in a real system you'd parse structured content
-    return response_text.strip(), [], []
+    try:
+        prompt = get_digest_prompt(transcript)
+        
+        response = client.models.generate_content(
+            model=DEFAULT_GEMINI_MODEL,
+            contents=prompt,
+            config={
+                "response_mime_type": "application/json",
+                "response_schema": DigestStructure,
+            },
+        )
+        
+        if response.parsed:
+            digest: DigestStructure = response.parsed
+            return digest.overview, digest.key_decisions, digest.action_items
+        else:
+            # Fallback to text parsing if JSON parsing fails
+            return response.text.strip(), [], []
+            
+    except Exception as e:
+        # Fallback to simple parsing
+        return f"Error parsing structured response: {str(e)}", [], []
 
 
 @router.post("/chat")
@@ -48,16 +66,22 @@ async def create_chat(
 
     async def generate_chat_stream():
         try:
-            # Get prompt and generate streaming content
-            
-            if request.template== Template.digest:
+            # Get prompt and generate content
+            if request.template == Template.digest:
                 prompt = get_digest_prompt(request.input)    
             else:
                 prompt = request.input
             
-            
             client = get_client()
             
+            # For digest template, run both streaming and structured calls concurrently
+            if request.template == Template.digest:
+                # Start structured call in background
+                structured_task = asyncio.create_task(
+                    asyncio.to_thread(get_structured_digest, request.input, client)
+                )
+            
+            # Start streaming call
             chat = client.chats.create(model=DEFAULT_GEMINI_MODEL, config=types.GenerateContentConfig(
                     system_instruction=SYSTEM_INSTRUCTION)
             )
@@ -69,8 +93,8 @@ async def create_chat(
             for chunk in response:
                 if chunk.text:
                     full_content += chunk.text
-                    # Stream each chunk to client
-                    yield f"data: {json.dumps({'type': 'content', 'text': chunk.text})}\n\n"
+                    # Stream each chunk to client with render field
+                    yield f"data: {json.dumps({'type': 'content', 'text': chunk.text, 'render': 'streaming'})}\n\n"
                     await asyncio.sleep(0)  # Allow other tasks to run
 
             if not full_content.strip():
@@ -78,8 +102,15 @@ async def create_chat(
                     status_code=500, detail="AI service returned empty response"
                 )
 
-            # Parse the response into structured components
-            overview, key_decisions, action_items = parse_digest_response(full_content)
+            # Get structured data from concurrent task or fallback
+            if request.template == Template.digest:
+                try:
+                    overview, key_decisions, action_items = await structured_task
+                except Exception as e:
+                    # Fallback to simple parsing if structured call fails
+                    overview, key_decisions, action_items = full_content.strip(), [], []
+            else:
+                overview, key_decisions, action_items = full_content.strip(), [], []
 
             # Save to database
             db_chat = Chat(
@@ -100,7 +131,7 @@ async def create_chat(
             session.updated_at = datetime.utcnow()
             db.commit()
 
-            # Send completion event with parsed data
+            # Send completion event with structured data
             chat_data = {
                 "id": db_chat.id,
                 "chat_id": db_chat.chat_id,
@@ -109,6 +140,7 @@ async def create_chat(
                 "key_decisions": db_chat.key_decisions,
                 "action_items": db_chat.action_items,
                 "created_at": db_chat.created_at.isoformat(),
+                "render": "json"
             }
             yield f"data: {json.dumps({'type': 'complete', 'chat': chat_data})}\n\n"
 

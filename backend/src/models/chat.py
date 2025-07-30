@@ -8,6 +8,13 @@ class Template(Enum):
     chat = "chat"
 
 
+class DigestStructure(BaseModel):
+    """Structured digest data for Gemini JSON response"""
+    overview: str = Field(description="Brief one-paragraph overview of the meeting")
+    key_decisions: List[str] = Field(description="List of key decisions made in the meeting")
+    action_items: List[str] = Field(description="List of action items with assignees")
+
+
 class ChatResponse(BaseModel):
     id: str
     chat_id: str

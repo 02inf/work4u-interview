@@ -1,4 +1,4 @@
-from .chat import ChatResponse, ChatCreateRequest, Template
+from .chat import ChatResponse, ChatCreateRequest, Template, DigestStructure
 from .session import SessionResponse
 from .base import APIResponse
 from .gemini import ChatRequest, ChatResponse as GeminiChatResponse
@@ -12,4 +12,5 @@ __all__ = [
     "ChatRequest",
     "GeminiChatResponse",
     "Template",
+    "DigestStructure",
 ]
