@@ -3,13 +3,14 @@ from fastapi.responses import StreamingResponse
 from typing import List
 from google import genai
 from datetime import datetime
-import uuid
 import json
 import asyncio
 import os
 from sqlalchemy.orm import Session
+from google.genai import types
+from ...constants import SYSTEM_INSTRUCTION
 
-from ...models import ChatCreateRequest, ChatUpdateRequest, ChatResponse, APIResponse
+from ...models import ChatCreateRequest, ChatResponse, APIResponse, Template
 from ...schemas import Session as SessionModel, Chat
 from ...constants import DEFAULT_GEMINI_MODEL
 from ...prompts.digest import get_digest_prompt
@@ -33,27 +34,35 @@ def parse_digest_response(response_text: str):
     return response_text.strip(), [], []
 
 
-@router.post("/chats")
+@router.post("/chat")
 async def create_chat(
     request: ChatCreateRequest, db: Session = Depends(get_database)
 ):
     """
-    Create a chat from transcript with streaming response
+    Create a chat with streaming response
     """
     # Validate session exists
     session = db.query(SessionModel).filter(SessionModel.session_id == request.session_id).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=500, detail="Session not found")
 
     async def generate_chat_stream():
         try:
             # Get prompt and generate streaming content
-            prompt = get_digest_prompt(request.transcript)
+            
+            if request.template== Template.digest:
+                prompt = get_digest_prompt(request.input)    
+            else:
+                prompt = request.input
+            
+            
             client = get_client()
-
-            response = client.models.generate_content_stream(
-                model=DEFAULT_GEMINI_MODEL, contents=prompt
+            
+            chat = client.chats.create(model=DEFAULT_GEMINI_MODEL, config=types.GenerateContentConfig(
+                    system_instruction=SYSTEM_INSTRUCTION)
             )
+
+            response = chat.send_message_stream(prompt)
 
             # Collect full content while streaming
             full_content = ""
@@ -75,7 +84,7 @@ async def create_chat(
             # Save to database
             db_chat = Chat(
                 session_id=request.session_id,
-                original_transcript=request.transcript,
+                original_transcript=request.input,
                 summary=full_content,
                 overview=overview,
                 key_decisions=key_decisions,
@@ -183,77 +192,6 @@ async def get_chat_by_id(chat_id: str, db: Session = Depends(get_database)):
         message="Chat retrieved successfully",
         data=chat_data
     )
-
-
-@router.put("/chats/{chat_id}", response_model=APIResponse[ChatResponse])
-async def update_chat(
-    chat_id: str, request: ChatUpdateRequest, db: Session = Depends(get_database)
-):
-    """
-    Update a chat with new transcript
-    """
-    chat = db.query(Chat).filter(Chat.chat_id == chat_id).first()
-    if not chat:
-        raise HTTPException(status_code=404, detail="Chat not found")
-    
-    # Validate session exists and matches
-    session = db.query(SessionModel).filter(SessionModel.session_id == request.session_id).first()
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    if chat.session_id != request.session_id:
-        raise HTTPException(status_code=400, detail="Session ID mismatch")
-
-    # Update the original transcript
-    chat.original_transcript = request.transcript
-
-    try:
-        # Re-generate chat with new transcript
-        prompt = get_digest_prompt(request.transcript)
-
-        client = get_client()
-        response = client.models.generate_content(
-            model=DEFAULT_GEMINI_MODEL, contents=prompt
-        )
-
-        if not response or not response.text:
-            raise HTTPException(
-                status_code=500, detail="AI service returned empty response"
-            )
-
-        # Parse the response into structured components  
-        overview, key_decisions, action_items = parse_digest_response(response.text)
-        
-        # Update chat fields
-        chat.summary = response.text
-        chat.overview = overview
-        chat.key_decisions = key_decisions
-        chat.action_items = action_items
-        
-        # Update session timestamp
-        session.updated_at = datetime.utcnow()
-
-        db.commit()
-        db.refresh(chat)
-
-        chat_data = ChatResponse(
-            id=chat.id,
-            chat_id=chat.chat_id,
-            session_id=chat.session_id,
-            overview=chat.overview,
-            key_decisions=chat.key_decisions,
-            action_items=chat.action_items,
-            created_at=chat.created_at,
-        )
-        
-        return APIResponse(
-            message="Chat updated successfully",
-            data=chat_data
-        )
-
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error updating chat: {str(e)}")
 
 
 @router.delete("/chats/{chat_id}", response_model=APIResponse[dict])

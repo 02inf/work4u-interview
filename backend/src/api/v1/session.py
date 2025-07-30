@@ -3,7 +3,7 @@ from typing import List
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from ...models import SessionResponse, APIResponse
+from ...models import SessionResponse, APIResponse, ChatResponse
 from ...schemas import Session as SessionModel, Chat
 from ..deps import get_database
 
@@ -78,8 +78,44 @@ async def get_session(session_id: str, db: Session = Depends(get_database)):
     )
 
 
+@router.get("/sessions/{session_id}/chats", response_model=APIResponse[List[ChatResponse]])
+async def get_session_chats(session_id: str, db: Session = Depends(get_database)):
+    """
+    Get all chats for a specific session
+    """
+    # Validate session exists
+    session = db.query(SessionModel).filter(SessionModel.session_id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Get all chats for this session
+    chats = db.query(Chat).filter(Chat.session_id == session_id).order_by(Chat.created_at.desc()).all()
+    
+    chats_data = [
+        ChatResponse(
+            id=chat.id,
+            chat_id=chat.chat_id,
+            session_id=chat.session_id,
+            original_transcript=chat.original_transcript,
+            overview=chat.overview,
+            key_decisions=chat.key_decisions,
+            action_items=chat.action_items,
+            created_at=chat.created_at,
+        )
+        for chat in chats
+    ]
+    
+    return APIResponse(
+        message=f"Retrieved {len(chats_data)} chats for session",
+        data=chats_data
+    )
+
+
 @router.delete("/sessions/{session_id}", response_model=APIResponse[dict])
 async def delete_session(session_id: str, db: Session = Depends(get_database)):
+    
+    
+
     """
     Delete a session and all its chats
     """
