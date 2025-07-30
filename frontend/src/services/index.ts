@@ -9,11 +9,20 @@ export const generateSession = () => {
       `${API_BASE}/session`
     )
     .then((response) => {
-      debugger;
       if (response.data.success) {
         return response.data.data;
       }
 
       throw new Error(response.data.message);
+    });
+};
+
+export const getSessions = () => {
+  return axios
+    .get<components["schemas"]["APIResponse_List_SessionResponse__"]>(
+      `${API_BASE}/sessions`
+    )
+    .then((response) => {
+      return response.data.data;
     });
 };

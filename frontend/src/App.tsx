@@ -5,9 +5,11 @@ import { Button } from "./components/ui/button";
 import { Card } from "./components/ui/card";
 import { Textarea } from "./components/ui/textarea";
 import { Send, Share2Icon } from "lucide-react";
-import { generateSession } from "./services";
+import { generateSession, getSessions } from "./services";
 // i'm using react-router-dom
 import { useNavigate } from "react-router-dom";
+import { toast, Toaster } from "sonner";
+import type { components } from "./services/schema";
 
 enum Template {
   "digest" = "digest",
@@ -33,14 +35,8 @@ function App() {
   const navigate = useNavigate();
 
   // Use ahooks useRequest for fetching past digests
-  const { data: pastDigests = [], refresh: refreshDigests } = useRequest(
-    async () => {
-      const response = await fetch(`${API_BASE}/api/digests`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch past digests");
-      }
-      return response.json();
-    },
+  const { data: sessions = [], refresh: refreshSessions } = useRequest(
+    getSessions,
     {
       onError: (err) => {
         console.error("Failed to fetch past digests:", err);
@@ -91,7 +87,7 @@ function App() {
             } else if (data.type === "content") {
               setStreamContent((prev) => prev + data.text);
             } else if (data.type === "complete") {
-              refreshDigests();
+              refreshSessions();
             } else if (data.type === "error") {
               setError(data.message);
             }
@@ -127,9 +123,8 @@ function App() {
   };
 
   const copyShareLink = () => {
-    const shareUrl = `${window.location.origin}/digest`;
-    navigator.clipboard.writeText(shareUrl);
-    // alert("Share link copied to clipboard!");
+    navigator.clipboard.writeText(window.location.href);
+    toast.success("Share link copied to clipboard!");
   };
 
   const generateNewSession = async () => {
@@ -167,30 +162,15 @@ function App() {
             <div className="font-bold px-2">Past Digests</div>
 
             <div className="flex-1 overflow-y-auto">
-              {[
-                {
-                  id: "1",
-                  created_at: "2021-01-01",
-                  overview: "Overview 1",
-                  key_decisions: ["Decision 1"],
-                  action_items: ["Action Item 1"],
-                },
-                {
-                  id: "2",
-                  created_at: "2021-01-02",
-                  overview: "Overview 2",
-                  key_decisions: ["Decision 2"],
-                  action_items: ["Action Item 2"],
-                },
-              ].map((digest: Digest) => (
+              {sessions?.map((session: components["schemas"]["SessionResponse"] ) => (
                 <div
-                  key={digest.id}
+                  key={session.session_id}
                   className="flex items-center overflow-hidden text-sm gap-2 p-2 hover:bg-muted rounded-md hover:cursor-pointer"
                 >
                   <span className="text-muted-foreground text-xs">
-                    {digest.created_at}
+                    {session.created_at}
                   </span>
-                  <span>{digest.overview}</span>
+                  {/* <span>{digest.overview}</span> */}
                 </div>
               ))}
             </div>
@@ -231,6 +211,9 @@ function App() {
           </div>
         </div>
       </div>
+      <Toaster
+        position="top-right"
+      />
     </>
   );
 }
