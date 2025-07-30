@@ -187,6 +187,8 @@ async def get_chats(session_id: str = None, db: Session = Depends(get_database))
             id=chat.id,
             chat_id=chat.chat_id,
             session_id=chat.session_id,
+            summary=chat.summary,
+            original_transcript=chat.original_transcript,
             overview=chat.overview,
             key_decisions=chat.key_decisions,
             action_items=chat.action_items,
@@ -201,28 +203,26 @@ async def get_chats(session_id: str = None, db: Session = Depends(get_database))
     )
 
 
-@router.get("/chats/{chat_id}", response_model=APIResponse[ChatResponse])
-async def get_chat_by_id(chat_id: str, db: Session = Depends(get_database)):
+@router.delete("/chats/clear", response_model=APIResponse[dict])
+async def clear_all_chats(session_id: str = None, db: Session = Depends(get_database)):
     """
-    Get a specific chat by chat_id
+    Clear all chats, optionally filtered by session_id
     """
-    chat = db.query(Chat).filter(Chat.chat_id == chat_id).first()
-    if not chat:
-        raise HTTPException(status_code=404, detail="Chat not found")
-
-    chat_data = ChatResponse(
-        id=chat.id,
-        chat_id=chat.chat_id,
-        session_id=chat.session_id,
-        overview=chat.overview,
-        key_decisions=chat.key_decisions,
-        action_items=chat.action_items,
-        created_at=chat.created_at,
-    )
+    query = db.query(Chat)
+    if session_id:
+        # Validate session exists
+        session = db.query(SessionModel).filter(SessionModel.session_id == session_id).first()
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        query = query.filter(Chat.session_id == session_id)
+    
+    count = query.count()
+    query.delete()
+    db.commit()
     
     return APIResponse(
-        message="Chat retrieved successfully",
-        data=chat_data
+        message=f"Cleared {count} chats from database",
+        data={"cleared_count": count}
     )
 
 
@@ -252,27 +252,4 @@ async def delete_chat(chat_id: str, session_id: str, db: Session = Depends(get_d
     return APIResponse(
         message="Chat deleted successfully",
         data={"chat_id": chat_id}
-    )
-
-
-@router.delete("/chats/clear", response_model=APIResponse[dict])
-async def clear_all_chats(session_id: str = None, db: Session = Depends(get_database)):
-    """
-    Clear all chats, optionally filtered by session_id
-    """
-    query = db.query(Chat)
-    if session_id:
-        # Validate session exists
-        session = db.query(SessionModel).filter(SessionModel.session_id == session_id).first()
-        if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
-        query = query.filter(Chat.session_id == session_id)
-    
-    count = query.count()
-    query.delete()
-    db.commit()
-    
-    return APIResponse(
-        message=f"Cleared {count} chats from database",
-        data={"cleared_count": count}
     )

@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { useRequest } from "ahooks";
 import { Button } from "./components/ui/button";
 import { Card } from "./components/ui/card";
 import { Textarea } from "./components/ui/textarea";
-import { Send, Share2Icon } from "lucide-react";
+import { Send, Share2Icon, Trash2 } from "lucide-react";
 import { generateSession, getSessionChats, getSessions } from "./services";
 import ReactMarkdown from "react-markdown";
 import { useNavigate } from "react-router-dom";
@@ -29,10 +29,17 @@ enum ChatStatus {
   "error" = "error",
 }
 
+enum ChatRender {
+  "text" = "text",
+  "structured" = "structured",
+}
+
 interface ChatItem {
   role: Role;
   content: string;
-  status: ChatStatus
+  status: ChatStatus;
+  render: ChatRender;
+  data?: any;
 }
 
 function App() {
@@ -42,6 +49,7 @@ function App() {
   const [chatItems, setChatItems] = useState<ChatItem[]>([]);
   // const [streamContent, setStreamContent] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const API_BASE = "http://localhost:8000";
 
@@ -54,7 +62,7 @@ function App() {
       onError: (err) => {
         console.error("Failed to fetch past digests:", err);
       },
-      debounceWait: 50
+      debounceWait: 50,
     }
   );
 
@@ -75,7 +83,12 @@ function App() {
     }
 
     setStreaming(true);
-    setChatItems(old => [...old, { role: Role.user, content: input, status: ChatStatus.pending }]);
+    setChatItems((old) => [
+      ...old,
+      { role: Role.user, content: input, status: ChatStatus.complete, render: ChatRender.text },
+      { role: Role.assistant, content: "", status: ChatStatus.pending, render: 
+        template === Template.digest ? ChatRender.structured : ChatRender.text },
+    ]);
     setError(null);
 
     try {
@@ -99,45 +112,49 @@ function App() {
             if (data.type === "start") {
               // Handle start event if needed
             } else if (data.type === "content") {
-              setChatItems(old => {
-                const newItems = [...old];
-                const lastItem = newItems[newItems.length - 1];
-                if (lastItem.status === ChatStatus.pending) {
-                  lastItem.content += data.text;
-                }
-                return newItems;
-              })
+              if (data.render === "streaming") {
+                setChatItems((old) => {
+                  const newItems = [...old];
+                  const lastItem = newItems[newItems.length - 1];
+                  if (lastItem.status === ChatStatus.pending) {
+                    lastItem.content += data.text;
+                  }
+                  return newItems;
+                });
+              }
             } else if (data.type === "complete") {
-              setChatItems(old => {
+              setChatItems((old) => {
                 const newItems = [...old];
                 const lastItem = newItems[newItems.length - 1];
                 if (lastItem.status === ChatStatus.pending) {
                   lastItem.status = ChatStatus.complete;
                 }
+
+                lastItem.data = data?.chat;
                 return newItems;
-              })
+              });
               refreshSessions();
             } else if (data.type === "error") {
-              setChatItems(old => {
+              setChatItems((old) => {
                 const newItems = [...old];
                 const lastItem = newItems[newItems.length - 1];
                 if (lastItem.status === ChatStatus.pending) {
                   lastItem.status = ChatStatus.error;
                 }
                 return newItems;
-              })
+              });
               // toast.error(data.message);
             }
           } catch (e) {
             console.log(e);
-            setChatItems(old => {
+            setChatItems((old) => {
               const newItems = [...old];
               const lastItem = newItems[newItems.length - 1];
               if (lastItem.status === ChatStatus.pending) {
                 lastItem.status = ChatStatus.error;
               }
               return newItems;
-            })
+            });
             // Ignore parsing errors for incomplete JSON
           }
         },
@@ -175,10 +192,31 @@ function App() {
     toast.success("Share link copied to clipboard!");
   };
 
+  const clearChats = async () => {
+    if (!confirm('Are you sure you want to clear all chats? This cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${API_BASE}/api/v1/chats/clear?session_id=${sessionId}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        setChatItems([]);
+        toast.success('All chats cleared successfully!');
+      } else {
+        toast.error('Failed to clear chats');
+      }
+    } catch (error) {
+      console.error('Failed to clear chats:', error);
+      toast.error('Failed to clear chats');
+    }
+  };
+
   const generateNewSession = async () => {
     // call api to generate a new session.
     const ret = await runGenerateSession();
-    debugger;
 
     if (ret?.session_id) {
       navigate(`/${ret.session_id}`);
@@ -195,24 +233,41 @@ function App() {
 
   useEffect(() => {
     if (sessionId) {
-      getSessionChats(sessionId).then(chats => {
+      getSessionChats(sessionId).then((chats) => {
         const historyChatItem = chats?.reduce((acc, rawChat) => {
           const newAcc = [...acc];
-          newAcc.push({
-            role: Role.user,
-            content: rawChat.original_transcript,
-            status: ChatStatus.complete,
-          }, {
-            role: Role.assistant,
-            content: rawChat.overview,
-            status: ChatStatus.complete,
-          })
+          newAcc.push(
+            {
+              role: Role.user,
+              content: rawChat.original_transcript,
+              status: ChatStatus.complete,
+              render: ChatRender.text,
+            },
+            {
+              role: Role.assistant,
+              content: rawChat.summary,
+              status: ChatStatus.complete,
+              render: rawChat.overview ? ChatRender.structured : ChatRender.text,
+              data: rawChat.overview ? {
+                overview: rawChat.overview,
+                key_decisions: rawChat.key_decisions,
+                action_items: rawChat.action_items,
+              } : undefined,
+            }
+          );
           return newAcc;
-        }, [] as ChatItem[])
+        }, [] as ChatItem[]);
         setChatItems(historyChatItem || []);
       });
     }
   }, [sessionId]);
+
+  // Auto-scroll to bottom when chat items change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatItems]);
+
+  console.log(chatItems)
 
   return (
     <>
@@ -222,8 +277,9 @@ function App() {
             <Button
               disabled={generateSessionLoading}
               onClick={generateNewSession}
+              size="icon"
             >
-              Start a new session
+              New
             </Button>
             <Button
               size="icon"
@@ -233,9 +289,22 @@ function App() {
             >
               <Share2Icon />
             </Button>
+
+            {sessionId && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={clearChats}
+                  className="text-red-500 hover:text-red-700 p-1 h-auto border shadow"
+                >
+                  <Trash2 size={14} />
+                </Button>
+              )}
           </div>
           <Card className="p-2 flex flex-col gap-2 flex-1">
-            <div className="font-bold px-2">Past Digests</div>
+            <div className="flex justify-between items-center px-2">
+              <div className="font-bold">Past Digests</div>
+            </div>
 
             <div className="flex-1 overflow-y-auto">
               {sessions?.map(
@@ -258,17 +327,44 @@ function App() {
         <div className="flex-1 flex flex-col gap-2">
           <div className="flex-1 w-full overflow-y-auto flex flex-col gap-2">
             {chatItems.map((item, index) => (
-              <div key={index} className={cn(item.role === Role.user ? "bg-primary-foreground" : "bg-gray-500 text-amber-50", "p-2 rounded-md text-sm shadow border")}>
-                <div className="text-xs font-bold">{item.role}: </div>
-                <div>
+              <div
+                key={index}
+                className={cn(
+                  item.role === Role.user
+                    ? "bg-primary-foreground"
+                    : "bg-gray-400 text-amber-50",
+                  "p-2 rounded-md text-sm shadow border"
+                )}
+              >
+                <div className="font-bold">{item.role.charAt(0).toUpperCase() + item.role.slice(1)}: </div>
+                <div className="my-2 h-[1px] bg-gray-200"></div>
+                <div className="flex flex-col gap-2">
+                  <h3>Summary</h3>
                   <ReactMarkdown>{item.content}</ReactMarkdown>
+                  <div className="my-2 h-[1px] bg-gray-200"></div>
+                  <h3>Overview</h3>
+                  <ReactMarkdown>{item.data?.overview}</ReactMarkdown>
+                  <h3>Key Decisions</h3>
+                  <ul>
+                    {item.data?.key_decisions.map((decision: string) => (
+                      <li key={decision}>* {decision}</li>
+                    ))}
+                  </ul>
+                  <h3>Action Items</h3>
+                  <ul>
+                    {item.data?.action_items.map((action: string) => (
+                      <li key={action}>* {action}</li>
+                    ))}
+                  </ul>
                 </div>
               </div>
             ))}
+            <div ref={messagesEndRef} />
           </div>
 
-          <div className="border rounded-2xl p-4 flex flex-col gap-4">
+          <div className="border rounded-2xl p-4 flex flex-col gap-4 max-h-[300px]">
             <Textarea
+            value={input}
               className="w-full min-h-48 border-none resize-none shadow"
               onChange={(e) => setInput(e.target.value)}
               placeholder="Paste your meeting transcript here, and click 'Generate Digest' to get a summary of the meeting or free chat."
@@ -276,20 +372,19 @@ function App() {
 
             <div className="flex justify-between">
               <div className="text-sm">
-                <span>
-                  {input.length} / 50000
-                </span>
+                <span>{input.length} / 50000</span>
                 {error && <span className="text-red-500">{error}</span>}
               </div>
               <div className="flex gap-2">
                 <Button
                   size="sm"
                   className="rounded-full"
-                  onClick={() =>
+                  onClick={() => {
+                    setInput("");
                     generateStream({
                       template: Template.digest,
-                    })
-                  }
+                    });
+                  }}
                   disabled={!sessionId || !input.trim() || streaming}
                 >
                   Generate Digest
@@ -303,6 +398,7 @@ function App() {
                     generateStream({
                       template: Template.chat,
                     });
+                    setInput("");
                   }}
                 >
                   <Send />

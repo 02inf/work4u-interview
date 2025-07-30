@@ -378,6 +378,8 @@ export interface components {
             chat_id: string;
             /** Session Id */
             session_id: string;
+            /** Summary */
+            summary: string;
             /** Overview */
             overview: string;
             /** Original Transcript */

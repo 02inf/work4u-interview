@@ -96,6 +96,7 @@ async def get_session_chats(session_id: str, db: Session = Depends(get_database)
             id=chat.id,
             chat_id=chat.chat_id,
             session_id=chat.session_id,
+            summary=chat.summary,
             original_transcript=chat.original_transcript,
             overview=chat.overview,
             key_decisions=chat.key_decisions,

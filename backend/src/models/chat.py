@@ -19,6 +19,7 @@ class ChatResponse(BaseModel):
     id: str
     chat_id: str
     session_id: str
+    summary: str
     overview: str
     original_transcript: str
     key_decisions: List[str]
