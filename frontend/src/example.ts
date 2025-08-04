@@ -1,0 +1,10 @@
+let a: number = 1;
+let b: number = 2;
+let c: number = 3;
+let d: number = 4;
+let e: number = 5;
+let f: number = 6;
+let g: number = 7;
+let h: number = 8;
+let i: number = 9;
+let j: number = 10;
