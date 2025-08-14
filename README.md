@@ -1,135 +1,135 @@
-# Take-Home Assignment: AI Meeting Digest
+# 带回家作业：AI会议摘要
 
-Welcome, and thank you for your interest in work4u and the amazing opportunities in our startup community! This assignment is designed to give us a sense of your software engineering skills in a practical, real-world scenario. It's a small, self-contained project that reflects the kind of work we do, including problem-solving, product thinking, and leveraging modern tools.
+欢迎，感谢您对work4u和我们创业社区中令人惊叹的机会感兴趣！这个作业旨在让我们了解您在实用、真实世界场景中的软件工程技能。这是一个小型、自包含的项目，反映了我们所做的工作类型，包括问题解决、产品思维和利用现代工具。
 
-**Time Limit:** 48 hours from the moment you clone this repository.
+**时间限制：** 从您克隆此存储库的那一刻起48小时。
 
-## The Challenge: Build an "AI Meeting Digest" Service
+## 挑战：构建"AI会议摘要"服务
 
-Your task is to build a full-stack web application that allows a user to submit a raw meeting transcript and, in return, receive a concise, AI-generated summary.
+您的任务是构建一个全栈Web应用程序，允许用户提交原始会议记录，并作为回报，获得简洁的AI生成的摘要。
 
-### Core User Story
+### 核心用户故事
 
-As a busy professional, I want to paste the long, messy transcript of a meeting I missed into a web application. After submitting it, I want to see a well-structured summary that includes:
+作为一个忙碌的专业人士，我想将错过的会议的长而混乱的记录粘贴到Web应用程序中。提交后，我想看到一个结构良好的摘要，包括：
 
-1. A brief, one-paragraph overview of the meeting.
-2. A bulleted list of the key decisions made.
-3. A bulleted list of the action items assigned, and to whom.
+1. 会议的简要、一段式概述。
+2. 所做关键决策的要点列表。
+3. 分配的行动项目的要点列表，以及分配给谁。
 
-The application should save my past summaries so I can review them later.
+应用程序应该保存我过去的摘要，以便我以后可以查看。
 
-### Core Features (Required)
+### 核心功能（必需）
 
-1.  **Frontend:** A clean, simple, and responsive user interface with:
-    * A large text area to paste the meeting transcript.
-    * A "Generate Digest" button.
-    * A section to display the structured AI-generated summary.
-    * A view to list previously generated digests.
+1.  **前端：** 一个干净、简单且响应式的用户界面，包含：
+    * 一个大的文本区域来粘贴会议记录。
+    * 一个"生成摘要"按钮。
+    * 一个显示结构化AI生成摘要的部分。
+    * 一个列出之前生成的摘要的视图。
 
-2.  **Backend:** An API service that:
-    * Accepts the transcript text from the frontend.
-    * Sends the transcript to a 3rd-party AI service (like Google's Gemini API) with a carefully crafted prompt to request the summary in the desired format.
-    * Parses the AI's response.
-    * Saves both the original transcript and the structured summary to a database.
-    * Provides an endpoint to retrieve a list of all past digests.
+2.  **后端：** 一个API服务，它：
+    * 从前端接受记录文本。
+    * 将记录发送到第三方AI服务（如Google的Gemini API），并带有精心制作的提示，以请求所需格式的摘要。
+    * 解析AI的响应。
+    * 将原始记录和结构化摘要保存到数据库。
+    * 提供一个端点来检索所有过去摘要的列表。
 
-3.  **Database:** A simple database schema to store the digests (e.g., an ID, the original transcript, the summary, and a timestamp).
+3.  **数据库：** 一个简单的数据库模式来存储摘要（例如，ID、原始记录、摘要和时间戳）。
 
-### Bonus Features (Optional but Recommended)
+### 奖励功能（可选但推荐）
 
-For candidates who wish to demonstrate a deeper level of expertise, we highly encourage you to implement one or both of the following features:
+对于希望展示更深层次专业知识的候选人，我们强烈鼓励您实现以下一个或两个功能：
 
-**1. Shareable Digest Links:**
-* **Goal:** Allow a user to share a generated digest with others via a unique, permanent URL.
-* **Implementation:**
-    * When a digest is created, generate a unique, hard-to-guess public ID (e.g., using `UUID`).
-    * Create a new page/route on the frontend (e.g., `/digest/:publicId`) that fetches and renders a single digest.
-    * The main list of digests should provide a "Share" button for each item, which copies this unique URL to the clipboard.
+**1. 可共享的摘要链接：**
+* **目标：** 允许用户通过唯一、永久的URL与他人共享生成的摘要。
+* **实现：**
+    * 当创建摘要时，生成一个唯一、难以猜测的公共ID（例如，使用`UUID`）。
+    * 在前端创建一个新页面/路由（例如，`/digest/:publicId`），获取并渲染单个摘要。
+    * 摘要的主要列表应该为每个项目提供一个"共享"按钮，将唯一URL复制到剪贴板。
 
-**2. Real-time Streaming Response:**
-* **Goal:** Improve user experience by displaying the AI-generated summary word-by-word as it's being generated, rather than waiting for the entire process to complete.
-* **Implementation:**
-    * Modify the backend endpoint to use the AI provider's streaming API.
-    * Use a technology like **Server-Sent Events (SSE)** or **WebSockets** to stream the response from the backend to the frontend in real-time.
-    * Update the frontend to progressively render the text as it arrives.
+**2. 实时流式响应：**
+* **目标：** 通过逐字显示AI生成的摘要来改善用户体验，而不是等待整个过程完成。
+* **实现：**
+    * 修改后端端点以使用AI提供商的流式API。
+    * 使用**服务器发送事件（SSE）**或**WebSockets**等技术将响应从后端实时流式传输到前端。
+    * 更新前端以在文本到达时逐步渲染。
 
-### On Using AI Programming Assistants (e.g., GitHub Copilot, Gemini)
+### 关于使用AI编程助手（例如，GitHub Copilot、Gemini）
 
-**We explicitly encourage you to use AI-powered coding assistants.** A modern engineer's skill set includes the ability to use these tools effectively. Part of this evaluation is to understand *how* you use them.
+**我们明确鼓励您使用AI驱动的编码助手。** 现代工程师的技能集包括有效使用这些工具的能力。此评估的一部分是了解您*如何*使用它们。
 
-### Frontend / Backend / Fullstack?
+### 前端/后端/全栈？
 
-We believe with in the AI coding era, **all** software engineers are somewhat fullstack engineers, so please try your best to develop the backend part with help of AI if you are a frontend developer (same if you are a backend developer). When evaluating your code, we would take these into consideration, ie, if you are a frontend developer but you are able to complete the backend part with reasonable quality, that would be a bonus point when we match you with any frontend jobs.
+我们相信在AI编码时代，**所有**软件工程师在某种程度上都是全栈工程师，所以如果您是前端开发人员，请尽最大努力在AI的帮助下开发后端部分（如果您是后端开发人员也是如此）。在评估您的代码时，我们会考虑这些因素，即如果您是前端开发人员但能够以合理的质量完成后端部分，这在将您与任何前端工作匹配时将是加分项。
 
-## Technical Requirements
+## 技术要求
 
-You have the freedom to choose your stack, but we recommend using common, modern technologies.
+您有选择技术栈的自由，但我们建议使用常见、现代的技术。
 
-* **Frontend:** React, Vue, or Svelte.
-* **Backend:** Node.js (Express/Fastify), Python (FastAPI/Flask), or Go.
-* **Database:** PostgreSQL, SQLite, or MongoDB.
-* **AI Service:** We recommend the **Google Gemini API**, as it supports streaming responses and has a generous free tier. You can get an API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+* **前端：** React、Vue或Svelte。
+* **后端：** Node.js（Express/Fastify）、Python（FastAPI/Flask）或Go。
+* **数据库：** PostgreSQL、SQLite或MongoDB。
+* **AI服务：** 我们推荐**Google Gemini API**，因为它支持流式响应并有一个慷慨的免费层。您可以从[Google AI Studio](https://aistudio.google.com/app/apikey)获取API密钥。
 
-## Example Project Structure (Feel Free To Define Your Own)
+## 示例项目结构（请随意定义您自己的）
 
 ```
 /
 ├── backend/
 │   ├── src/
-│   └── package.json (or requirements.txt, go.mod, etc.)
+│   └── package.json (或requirements.txt、go.mod等)
 ├── frontend/
 │   ├── src/
 │   └── package.json
 ├── .gitignore
-├── CANDIDATE_README.md  <-- YOU WILL FILL THIS OUT
-└── README.md            <-- THIS FILE
+├── CANDIDATE_README.md  <-- 您将填写这个
+└── README.md            <-- 这个文件
 ```
 
-## Submission Process
+## 提交过程
 
-1.  **Fork** this repository to your own GitHub account.
-2.  Create a new branch for your work (e.g., `ben/work4u-fullstack`).
-3.  Implement your solution.
-4.  Fill out the **`CANDIDATE_README.md`** file. This is a critical part of your submission.
-5.  Create a Pull Request from your feature branch to the `main` branch **of your own forked repository**.
-6.  Send us the link to the Pull Request.
+1.  **Fork** 此存储库到您自己的GitHub账户。
+2.  为您的作品创建一个新分支（例如，`ben/work4u-fullstack`）。
+3.  实现您的解决方案。
+4.  填写**`CANDIDATE_README.md`**文件。这是您提交的关键部分。
+5.  从您的功能分支到`main`分支创建一个Pull Request **到您自己的forked存储库**。
+6.  向我们发送Pull Request的链接。
 
-## Evaluation Criteria
+## 评估标准
 
-We will be evaluating your submission based on the following criteria:
+我们将根据以下标准评估您的提交：
 
-1.  **Code Quality & Architecture:** Is the code clean, well-structured, and maintainable?
-2.  **Functionality:** Does the application meet all the core feature requirements? Is it robust?
-3.  **Seniority & Initiative:** Implementation of the **Challenge Features** will be considered a strong indicator of seniority. How did you approach these more complex problems?
-4.  **Product Thinking:** How is the user experience? Did you consider edge cases (e.g., long transcripts, failed API calls, invalid share links)?
-5.  **Testing:** While a full test suite isn't required, the presence of some unit or integration tests will be viewed very favorably.
-6.  **Documentation & Communication:** The clarity and completeness of your `CANDIDATE_README.md` is as important as the code itself.
-
----
-
-## Candidate Write-up Template (`CANDIDATE_README.md`)
-
-*(Please copy the following template into the `CANDIDATE_README.md` file and fill it out as part of your submission.)*
+1.  **代码质量和架构：** 代码是否干净、结构良好且可维护？
+2.  **功能性：** 应用程序是否满足所有核心功能要求？它是否健壮？
+3.  **高级性和主动性：** 实现**挑战功能**将被视为高级性的强有力指标。您是如何处理这些更复杂的问题的？
+4.  **产品思维：** 用户体验如何？您是否考虑了边缘情况（例如，长记录、失败的API调用、无效的共享链接）？
+5.  **测试：** 虽然不需要完整的测试套件，但存在一些单元或集成测试将被非常积极地看待。
+6.  **文档和沟通：** 您的`CANDIDATE_README.md`的清晰度和完整性与代码本身一样重要。
 
 ---
 
-### 1. Technology Choices
+## 候选人撰写模板（`CANDIDATE_README.md`）
 
-* **Frontend:** `[Your Choice]`
-* **Backend:** `[Your Choice]`
-* **Database:** `[Your Choice]`
-* **AI Service:** `[Your Choice]`
+*（请将以下模板复制到`CANDIDATE_README.md`文件中，并作为您提交的一部分填写。）*
 
-Briefly explain why you chose this stack.
+---
 
-### 2. How to Run the Project
+### 1. 技术选择
 
-Provide clear, step-by-step instructions for how to get your project running locally.
+* **前端：** `[您的选择]`
+* **后端：** `[您的选择]`
+* **数据库：** `[您的选择]`
+* **AI服务：** `[您的选择]`
 
-### 3. Design Decisions & Trade-offs
+简要解释为什么选择这个技术栈。
 
-Explain any significant architectural or design decisions you made. What were the trade-offs? If you implemented the challenge features, describe your approach. What would you do differently if you had more time?
+### 2. 如何运行项目
 
-### 4. AI Usage Log
+提供清晰、逐步的说明，说明如何在本地运行您的项目。
 
-Describe how you used AI programming assistants during this project. Be specific!
+### 3. 设计决策和权衡
+
+解释您做出的任何重要架构或设计决策。权衡是什么？如果您实现了挑战功能，请描述您的方法。如果您有更多时间，您会做什么不同的事情？
+
+### 4. AI使用日志
+
+描述您在此项目期间如何使用AI编程助手。要具体！
