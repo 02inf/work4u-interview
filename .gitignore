@@ -267,8 +267,9 @@ temp/
 
 # Database files
 *.db
-*.sqlite
-*.sqlite3
+# Allow SQLite database for this project
+# *.sqlite
+# *.sqlite3
 
 # Backup files
 *.bak
@@ -284,7 +285,7 @@ dist/
 out/
 target/
 
-# Package manager files
-package-lock.json
+# Package manager files (allow for this project)
+# package-lock.json
 yarn.lock
 pnpm-lock.yaml 
