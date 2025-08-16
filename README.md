@@ -133,3 +133,4 @@ Explain any significant architectural or design decisions you made. What were th
 ### 4. AI Usage Log
 
 Describe how you used AI programming assistants during this project. Be specific!
+

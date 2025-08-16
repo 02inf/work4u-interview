@@ -1,0 +1,5 @@
+fastapi
+uvicorn
+sqlalchemy
+google-genai     # Google Gemini API SDK
+python-dotenv    # (optional, for loading API keys from .env)
