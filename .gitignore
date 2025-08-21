@@ -247,6 +247,7 @@ cython_debug/
 *.swp
 *.swo
 *~
+*.code-workspace
 
 # OS generated files
 .DS_Store
@@ -287,4 +288,9 @@ target/
 # Package manager files
 package-lock.json
 yarn.lock
-pnpm-lock.yaml 
+pnpm-lock.yaml .vscode
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
